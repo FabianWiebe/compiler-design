@@ -1,0 +1,84 @@
+Built a parse-tree:
+stream:
+Built a parse-tree:
+  optline:has line
+Built a parse-tree:
+    command:
+Built a parse-tree:
+      concatenate:
+Built a parse-tree:
+        WORD:diff
+Built a parse-tree:
+        SUBSHELL:
+Built a parse-tree:
+          stream:
+Built a parse-tree:
+            optline:has line
+Built a parse-tree:
+              pipeline:
+Built a parse-tree:
+                command:
+Built a parse-tree:
+                  WORD:ls
+Built a parse-tree:
+                command:
+Built a parse-tree:
+                  concatenate:
+Built a parse-tree:
+                    WORD:grep
+Built a parse-tree:
+                    QUOTED:^...
+Built a parse-tree:
+        SUBSHELL:
+Built a parse-tree:
+          stream:
+Built a parse-tree:
+            optline:has line
+Built a parse-tree:
+              line:
+Built a parse-tree:
+                line:
+Built a parse-tree:
+                  command:
+Built a parse-tree:
+                    concatenate:
+Built a parse-tree:
+                      WORD:cat
+Built a parse-tree:
+                      WORD:prefix
+Built a parse-tree:
+                  command:
+Built a parse-tree:
+                    concatenate:
+Built a parse-tree:
+                      WORD:cut
+Built a parse-tree:
+                      WORD:-c1-3
+Built a parse-tree:
+                      WORD:rest
+Built a parse-tree:
+                command:
+Built a parse-tree:
+                  concatenate:
+Built a parse-tree:
+                    WORD:echo
+Built a parse-tree:
+                    SUBSHELL:
+Built a parse-tree:
+                      stream:
+Built a parse-tree:
+                        optline:has line
+Built a parse-tree:
+                          pipeline:
+Built a parse-tree:
+                            command:
+Built a parse-tree:
+                              WORD:ls
+Built a parse-tree:
+                            command:
+Built a parse-tree:
+                              concatenate:
+Built a parse-tree:
+                                WORD:grep
+Built a parse-tree:
+                                QUOTED:^...

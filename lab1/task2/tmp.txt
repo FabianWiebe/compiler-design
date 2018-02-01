@@ -1,0 +1,6 @@
+prefix$var"$anothervar" "all one string"
+";" \; ; "|"\||
+"one string$split another string"
+a="$var"
+b=""
+b="\"$var\""

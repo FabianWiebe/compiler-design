@@ -1,0 +1,4 @@
+word -flag name
+cmd ;/path/bin;unstructured|x|sequence;blah
+works because; a;blank between
+similarly ;\;|\|;blah
