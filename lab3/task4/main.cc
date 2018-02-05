@@ -1,7 +1,8 @@
-#include<iostream>
+#include <iostream>
+#include <memory>
 #include "binary.tab.hh"
 #include "Node.hh"
-extern Node root;
+extern std::shared_ptr<Node> root;
 
 void yy::parser::error(std::string const&err)
 {
@@ -11,8 +12,13 @@ void yy::parser::error(std::string const&err)
 int main(int argc, char **argv)
 {
 yy::parser parser;
-  if(!parser.parse())
-    //root.dump_as_graph();
-    root.dump();
+  if(!parser.parse()) {
+    //root->dump_as_graph();
+	root->dump();
+	std::cout << std::endl;
+	Environment e;
+	root->execute(e);
+	std::cout << e;
+  }
   return 0;
 }
