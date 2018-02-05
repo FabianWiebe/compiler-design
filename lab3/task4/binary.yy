@@ -41,10 +41,12 @@ stream : optline              { $$ = Node("stream","");
                                 $$.children.push_back($3);
                                 root = $$;}
        ;
+
 optline : /*empty*/   { $$ = Node("optline","empty"); }
         | line        { $$ = Node("optline","has line");
                          $$.children.push_back($1); }
         ;
+
 line : pipeline        { $$ = $1; }
      | line SEMI pipeline   { $$ = Node("line","");
                          $$.children.push_back($1);
@@ -60,11 +62,13 @@ assignment : unit EQUALS concat { $$ = Node("equals", $2);
             | assignment BLANK assignment { $$ = $1;
                          $$.children.push_back($3); }
             | command { $$ = $1; }
+            ;
 
 pipeline : assignment       { $$ = $1; }
       | pipeline PIPE assignment   { $$ = Node("pipeline","");
                           $$.children.push_back($1);
                          $$.children.push_back($3); }
+      ;
 
 command : field        { $$ = Node("command","");
                          $$.children.push_back($1); }
@@ -80,6 +84,7 @@ concat : unit       { $$ = Node("concatenate","");
                           $$.children.push_back($1); }
      | concat unit   { $$ = $1;
                          $$.children.push_back($2); }
+      ;
 
 unit : WORD		{ $$ = Node("WORD", $1); }
        | VAR		{ $$ = Node("VAREXP", $1.substr(1));  }
