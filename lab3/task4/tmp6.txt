@@ -1,0 +1,1 @@
+ diff <(ls|grep '^...'a) <(cat prefix;cut -c1-3 rest; echo <(ls| grep '^...')) 

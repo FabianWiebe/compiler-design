@@ -47,7 +47,6 @@ private:
 	  	std::string child_id = get_id(tag_counter, i->tag);
 	  	i->dump_graph_node(child_id, tag_counter, depth + 1);
 	  	std::cout << id << " -> " << child_id << ";" << std::endl;
-	  	//std::cout << "test  "<< std::endl;
 	  }
 	}
 };

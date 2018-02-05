@@ -3,7 +3,7 @@ parser: lex.yy.c binary.tab.o main.cc Node.hh
 binary.tab.o: binary.tab.cc
 	g++ -std=c++11 -g -c binary.tab.cc
 binary.tab.cc: binary.yy
-	bison binary.yy
+	bison -v --report-file=report.txt binary.yy
 lex.yy.c: binary.ll binary.tab.cc
 	flex binary.ll
 clean: 
