@@ -10,7 +10,7 @@
 NOT_SPECIAL [^\n|; $\t\\'"=<()]
 %%
 ({NOT_SPECIAL}|\\.)*					{ return yy::parser::make_WORD(
-													std::make_unique<Node>("WORD", yytext)); }
+													std::make_unique<WordNode>("WORD", yytext)); }
 \n           							{ return yy::parser::make_NEWL(yytext); }
 \|           							{ return yy::parser::make_PIPE(yytext); }
 =           							{ return yy::parser::make_EQUALS(

@@ -69,8 +69,7 @@ pipeline : assignment_w_frontblank       { $$ = $1; }
                          $$->children.push_back($3); }
       ;
 
-command : WORD        { $$ = std::make_unique<CommandNode>("command","");
-                         $$->children.push_back($1); }
+command : WORD        { $$ = std::make_unique<CommandNode>($1); }
       | command BLANK field   { $$ = $1;
                          $$->children.push_back($3); }
       ;
@@ -90,6 +89,6 @@ unit : WORD		{ $$ = $1; }
        | VAR		{ $$ = $1; }
        | QUOTE		{ $$ = $1; }
        | EQUALS { $$ = $1; }
-       | SHELL_BEGIN stream SHELL_END { $$ = std::make_unique<Node>("SUBSHELL", ""); 
+       | SHELL_BEGIN stream SHELL_END { $$ = std::make_unique<ShellNode>("SUBSHELL", ""); 
                                         $$->children.push_back($2);}
        ;

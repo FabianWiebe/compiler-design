@@ -6,103 +6,15 @@
 #include <map>
 #include <utility>
 #include <memory>
-#include <stack>
 #include <map>
 #include <stdexcept>
 #include <cassert>
+#include <sstream>
+#include <cstdlib>
+#include <fstream>
 
-struct BaseStore {
-	virtual ~BaseStore() = default;
-};
-template <typename T>
-struct Store : public BaseStore {
-	Store(T v) : BaseStore(), value(v) {};
-	T value;
-};
-
-class Value {
-public:
-	enum class Type {BOOL, INT, DOUBLE, STRING};
-	int as_int() {
-		return 1;
-	}
-	double as_double() {
-		return 1.;
-	}
-	std::string as_string() {
-		return "";
-	}
-	bool as_bool() {
-		return true;
-		switch(type) {
-			case Type::BOOL: {
-				auto ptr = std::dynamic_pointer_cast<Store<bool>>(value);
-				return ptr->value;
-			}
-			case Type::INT: {
-				auto ptr = std::dynamic_pointer_cast<Store<int>>(value);
-				return ptr->value == 1;
-			}
-			case Type::DOUBLE: {
-				auto ptr = std::dynamic_pointer_cast<Store<double>>(value);
-				return ptr->value == 1.;
-			}
-			case Type::STRING: {
-				auto ptr = std::dynamic_pointer_cast<Store<std::string>>(value);
-				return !ptr->value.empty();
-			}
-		}
-		return false;
-	}
-	Value(bool v) : type(Type::BOOL), value(std::make_shared<Store<bool>>(v)) {}
-	Value(int v) : type(Type::INT), value(std::make_shared<Store<int>>(v)) {}
-	Value(double v) : type(Type::DOUBLE), value(std::make_shared<Store<double>>(v)) {}
-	Value(std::string v) : type(Type::STRING), value(std::make_shared<Store<std::string>>(v)) {}
-	Type type;
-private:
-	std::shared_ptr<BaseStore> value;
-};
-
-
-class Environment {
-public:
-	Environment() {
-		stack.emplace();
-	}
-	void new_context() {
-		stack.emplace();
-	}
-	void clear_context() {
-		stack.pop();
-	}
-	void set(std::string name, Value value) {
-		std::cout << "setting " << name << " to " << value.as_string() << std::endl;
-		auto mapping = stack.top();
-		auto it = mapping.find(name);
-		if (it != mapping.end()) {
-			it->second = value;
-		} else {
-			mapping.insert(std::make_pair(name, value));
-		}
-	}
-	Value& get(std::string name) {
-		auto mapping = stack.top();
-		auto it = mapping.find(name);
-		if (it != mapping.end()) {
-			return it->second;
-		}
-		throw std::invalid_argument( "name not found" );
-	}
-	friend std::ostream& operator<< (std::ostream& stream, const Environment& env) {
-		auto mapping = env.stack.top();
-		stream << "Current context:" << std::endl;
-		for (auto & pair : mapping) {
-			stream << pair.first << " : " << pair.second.as_string() << std::endl;
-		}
-	}
-private:
-	std::stack<std::map<std::string, Value>> stack;
-};
+#include "Value.hh"
+#include "Environment.hh"
 
 class Node {
 	using counter = std::map<std::string, size_t>;
@@ -131,7 +43,6 @@ public:
 		stream << node.tag << " " << node.value;
 	}
 	virtual Value execute(Environment & e) {
-		std::cout << "Default " << *this << std::endl;
 		for (auto & child : children) {
 			child->execute(e);
 		}
@@ -164,11 +75,13 @@ class ConcatNode : public Node {
 public:
 	using Node::Node;
 	virtual Value execute(Environment & e) {
-		std::cout << "Execute " << *this << std::endl;
+		std::stringstream ss;
 		for (auto & child : children) {
-			child->execute(e);
+			ss << child->execute(e).as_string();
 		}
-		return Value(value);
+		auto str = ss.str();
+		std::cout << "Concat to " << str << std::endl;
+		return Value(str);
 	}
 };
 
@@ -176,10 +89,6 @@ class QuoteNode : public Node {
 public:
 	using Node::Node;
 	virtual Value execute(Environment & e) {
-		std::cout << "Execute " << *this << std::endl;
-		for (auto & child : children) {
-			child->execute(e);
-		}
 		return Value(value);
 	}
 };
@@ -189,10 +98,9 @@ public:
 	AssignmentNode(std::shared_ptr<Node> n, std::shared_ptr<Node> v) :
 		Node("assignment", "="), name(n), value_node(v) {}
 	virtual Value execute(Environment & e) {
-		std::cout << "*Execute assignment " << *this << std::endl;
 		auto computed_value = value_node->execute(e);
-		std::cout << "*before setting " << std::endl;
 		e.set(name->value, computed_value);
+		std::cout << "Execute assignment: " << name->value << "=" << computed_value.as_string() << std::endl;
 		if (!children.empty()) {
 			children.front()->execute(e);
 		}
@@ -207,22 +115,47 @@ class VarNode : public Node {
 public:
 	using Node::Node;
 	virtual Value execute(Environment & e) {
-		std::cout << "Execute " << *this << std::endl;
-		for (auto & child : children) {
-			child->execute(e);
-		}
-		return Value(value);
+		auto retrieved_value = e.get(value);
+		std::cout << "From " << value << " retrieved " << retrieved_value.as_string() << std::endl;
+		return retrieved_value;
+	}
+};
+
+class WordNode : public Node {
+public:
+	using Node::Node;
+	virtual Value execute(Environment & e) {
+		return Value::parse_string(value);
+	}
+};
+
+class ShellNode : public Node {
+public:
+	using Node::Node;
+	virtual Value execute(Environment & e) {
+		std::cout << "Executing shell, creating new context" << std::endl;
+		e.new_context();
+		auto result = children.front()->execute(e);
+		std::cout << "Exiting shell, clearing context" << std::endl;
+		e.clear_context();
+		return result;
 	}
 };
 
 class CommandNode : public Node {
 public:
-	using Node::Node;
+	CommandNode(std::shared_ptr<Node> cmd) : Node("command",""), command(cmd) {}
 	virtual Value execute(Environment & e) {
-		std::cout << "Execute " << *this << std::endl;
+		std::stringstream ss;
+		ss << command->value;
 		for (auto & child : children) {
-			child->execute(e);
+			ss << " " << child->execute(e).as_string();
 		}
-		return Value(value);
+		auto str = ss.str();
+		std::cout << "Executing on bash: " << str << std::endl;
+		std::system(str.c_str());
+		return Value(str);
 	}
+private:
+	std::shared_ptr<Node> command;
 };
