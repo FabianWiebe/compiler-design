@@ -7,7 +7,7 @@
 }
 %x STRING
 %option noyywrap nounput batch noinput
-NOT_SPECIAL [^\n|; $\t\\'"=<()]
+NOT_SPECIAL [^\n|; $\t\\'"=<()+\-*/]
 %%
 ({NOT_SPECIAL}|\\.)*					{ return yy::parser::make_WORD(
 													std::make_unique<WordNode>("WORD", yytext)); }
@@ -32,5 +32,9 @@ NOT_SPECIAL [^\n|; $\t\\'"=<()]
 													std::make_unique<QuoteNode>("DBLQUOTE", yytext)); }
 \"\"									{ return yy::parser::make_QUOTE(
 													std::make_unique<QuoteNode>("DBLQUOTE", "")); }
+\+											{ return yy::parser::make_PLUS(yytext); }
+\-											{ return yy::parser::make_MIN(yytext); }
+\*											{ return yy::parser::make_MUL(yytext); }
+\/											{ return yy::parser::make_DIV(yytext); }
 <<EOF>>    								   return yy::parser::make_END();
 %%

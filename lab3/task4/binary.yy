@@ -22,6 +22,10 @@
 %token <std::shared_ptr<Node>> EQUALS
 %token <std::string> SHELL_BEGIN
 %token <std::string> SHELL_END
+%token <std::string> PLUS
+%token <std::string> MIN
+%token <std::string> MUL
+%token <std::string> DIV
 %type <std::shared_ptr<Node>> stream
 %type <std::shared_ptr<Node>> optline
 %type <std::shared_ptr<Node>> line
@@ -32,6 +36,8 @@
 %type <std::shared_ptr<Node>> field
 %type <std::shared_ptr<Node>> assignment
 %type <std::shared_ptr<Node>> assignment_w_frontblank
+%type <std::shared_ptr<Node>> plus_minus
+%type <std::shared_ptr<Node>> mul_div
 %token END 0 "end of file"
 %%
 stream : optline              { $$ = std::make_unique<Node>("stream","");
@@ -85,10 +91,20 @@ concat : unit unit       { $$ = std::make_unique<ConcatNode>("concatenate","");
                          $$->children.push_back($2); }
       ;
 
-unit : WORD		{ $$ = $1; }
+unit : plus_minus		{ $$ = $1; }
        | VAR		{ $$ = $1; }
        | QUOTE		{ $$ = $1; }
        | EQUALS { $$ = $1; }
        | SHELL_BEGIN stream SHELL_END { $$ = std::make_unique<ShellNode>("SUBSHELL", ""); 
                                         $$->children.push_back($2);}
        ;
+
+plus_minus : mul_div { $$ = $1; }
+      | plus_minus PLUS mul_div { $$ = std::make_unique<MathNode>(MathNode::Op::PLUS, $1, $3);  }
+      | plus_minus MIN mul_div { $$ = std::make_unique<MathNode>(MathNode::Op::MIN, $1, $3);  }
+      ;
+
+mul_div : WORD { $$ = $1; }
+      | mul_div MUL WORD { $$ = std::make_unique<MathNode>(MathNode::Op::MUL, $1, $3);  }
+      | mul_div DIV WORD { $$ = std::make_unique<MathNode>(MathNode::Op::DIV, $1, $3);  }
+      ;

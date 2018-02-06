@@ -154,8 +154,37 @@ public:
 		auto str = ss.str();
 		std::cout << "Executing on bash: " << str << std::endl;
 		std::system(str.c_str());
-		return Value(str);
+		return str;
 	}
 private:
 	std::shared_ptr<Node> command;
+};
+
+class MathNode : public Node {
+public:
+	enum class Op {PLUS, MIN, MUL, DIV};
+	MathNode(Op op, std::shared_ptr<Node> l, std::shared_ptr<Node> r) :
+		Node("math", ""), operation(op), left(l), right(r) {}
+	virtual Value execute(Environment & e) {
+		switch(operation) {
+			case Op::PLUS:
+				return check_for_int(left->execute(e).as_double() + right->execute(e).as_double());
+			case Op::MIN:
+				return check_for_int(left->execute(e).as_double() - right->execute(e).as_double());
+			case Op::MUL:
+				return check_for_int(left->execute(e).as_double() * right->execute(e).as_double());
+			case Op::DIV:
+				return check_for_int(left->execute(e).as_double() / right->execute(e).as_double());
+			default:
+				throw std::invalid_argument( "Unkwon math operation" );
+		}
+	}
+private:
+	Value check_for_int(double value) {
+		if (value == floor(value)) return static_cast<int>(value);
+		return value;
+	}
+	Op operation;
+	std::shared_ptr<Node> left;
+	std::shared_ptr<Node> right;
 };
