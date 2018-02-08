@@ -16,7 +16,8 @@ NOT_SPECIAL [^\n|; $\t\\'"=<()+\-*/]
 =           							{ return yy::parser::make_EQUALS(
 													std::make_unique<Node>("equals", yytext)); }
 \<\(           							{ return yy::parser::make_SHELL_BEGIN(yytext); }
-\)           							{ return yy::parser::make_SHELL_END(yytext); }
+\(           							{ return yy::parser::make_LEFT_PARENTHESIS(yytext); }
+\)           							{ return yy::parser::make_RIGHT_PARENTHESIS(yytext); }
 ;           							{ return yy::parser::make_SEMI(yytext); }
 [ \t]+									{ return yy::parser::make_BLANK(yytext); }
 <INITIAL,STRING>${NOT_SPECIAL}+			{ std::string text(yytext);

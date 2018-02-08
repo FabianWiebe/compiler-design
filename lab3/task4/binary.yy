@@ -21,11 +21,12 @@
 %token <std::shared_ptr<Node>> QUOTE
 %token <std::shared_ptr<Node>> EQUALS
 %token <std::string> SHELL_BEGIN
-%token <std::string> SHELL_END
 %token <std::string> PLUS
 %token <std::string> MIN
 %token <std::string> MUL
 %token <std::string> DIV
+%token <std::string> LEFT_PARENTHESIS
+%token <std::string> RIGHT_PARENTHESIS
 %type <std::shared_ptr<Node>> stream
 %type <std::shared_ptr<Node>> optline
 %type <std::shared_ptr<Node>> line
@@ -95,7 +96,7 @@ unit : plus_minus		{ $$ = $1; }
        | VAR		{ $$ = $1; }
        | QUOTE		{ $$ = $1; }
        | EQUALS { $$ = $1; }
-       | SHELL_BEGIN stream SHELL_END { $$ = std::make_unique<ShellNode>("SUBSHELL", ""); 
+       | SHELL_BEGIN stream RIGHT_PARENTHESIS { $$ = std::make_unique<ShellNode>("SUBSHELL", ""); 
                                         $$->children.push_back($2);}
        ;
 
@@ -107,4 +108,5 @@ plus_minus : mul_div { $$ = $1; }
 mul_div : WORD { $$ = $1; }
       | mul_div MUL WORD { $$ = std::make_unique<MathNode>(MathNode::Op::MUL, $1, $3);  }
       | mul_div DIV WORD { $$ = std::make_unique<MathNode>(MathNode::Op::DIV, $1, $3);  }
+      | LEFT_PARENTHESIS unit RIGHT_PARENTHESIS { $$ = $2; }
       ;
