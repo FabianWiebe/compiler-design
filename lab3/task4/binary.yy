@@ -27,6 +27,7 @@
 %token <std::string> DIV
 %token <std::string> LEFT_PARENTHESIS
 %token <std::string> RIGHT_PARENTHESIS
+%token <std::shared_ptr<Node>> DOUBLE
 %type <std::shared_ptr<Node>> stream
 %type <std::shared_ptr<Node>> optline
 %type <std::shared_ptr<Node>> line
@@ -82,22 +83,24 @@ command : WORD        { $$ = std::make_unique<CommandNode>($1); }
       ;
 
 field : concat        { $$ = $1; }
-      | unit          { $$ = $1; }
+      | plus_minus          { $$ = $1; }
       ;
 
-concat : unit unit       { $$ = std::make_unique<ConcatNode>("concatenate","");
+concat : plus_minus plus_minus       { $$ = std::make_unique<ConcatNode>("concatenate","");
                           $$->children.push_back($1);
                           $$->children.push_back($2); }
-     | concat unit   { $$ = $1;
+     | concat plus_minus   { $$ = $1;
                          $$->children.push_back($2); }
       ;
 
-unit : plus_minus		{ $$ = $1; }
+unit : WORD { $$ = $1; }
        | VAR		{ $$ = $1; }
+       | DOUBLE    { $$ = $1; }
        | QUOTE		{ $$ = $1; }
        | EQUALS { $$ = $1; }
        | SHELL_BEGIN stream RIGHT_PARENTHESIS { $$ = std::make_unique<ShellNode>("SUBSHELL", ""); 
                                         $$->children.push_back($2);}
+      | LEFT_PARENTHESIS plus_minus RIGHT_PARENTHESIS { $$ = $2; }
        ;
 
 plus_minus : mul_div { $$ = $1; }
@@ -105,8 +108,7 @@ plus_minus : mul_div { $$ = $1; }
       | plus_minus MIN mul_div { $$ = std::make_unique<MathNode>(MathNode::Op::MIN, $1, $3);  }
       ;
 
-mul_div : WORD { $$ = $1; }
-      | mul_div MUL WORD { $$ = std::make_unique<MathNode>(MathNode::Op::MUL, $1, $3);  }
-      | mul_div DIV WORD { $$ = std::make_unique<MathNode>(MathNode::Op::DIV, $1, $3);  }
-      | LEFT_PARENTHESIS unit RIGHT_PARENTHESIS { $$ = $2; }
+mul_div : unit { $$ = $1; }
+      | mul_div MUL unit { $$ = std::make_unique<MathNode>(MathNode::Op::MUL, $1, $3);  }
+      | mul_div DIV unit { $$ = std::make_unique<MathNode>(MathNode::Op::DIV, $1, $3);  }
       ;

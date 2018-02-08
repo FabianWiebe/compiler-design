@@ -8,6 +8,7 @@
 %x STRING
 %option noyywrap nounput batch noinput
 NOT_SPECIAL [^\n|; $\t\\'"=<()+\-*/]
+DBL [0-9]*\.[0-9]+|[0-9]+\.[0-9]*
 %%
 ({NOT_SPECIAL}|\\.)*					{ return yy::parser::make_WORD(
 													std::make_unique<WordNode>("WORD", yytext)); }
@@ -20,6 +21,8 @@ NOT_SPECIAL [^\n|; $\t\\'"=<()+\-*/]
 \)           							{ return yy::parser::make_RIGHT_PARENTHESIS(yytext); }
 ;           							{ return yy::parser::make_SEMI(yytext); }
 [ \t]+									{ return yy::parser::make_BLANK(yytext); }
+{DBL}				{ std::cout << "----- found double: " << yytext<< std::endl;return yy::parser::make_DOUBLE(
+											std::make_unique<Node>("DOUBLE", yytext)); }
 <INITIAL,STRING>${NOT_SPECIAL}+			{ std::string text(yytext);
 											return yy::parser::make_VAR(
 													std::make_unique<VarNode>("VAREXP", text.substr(1))); }
