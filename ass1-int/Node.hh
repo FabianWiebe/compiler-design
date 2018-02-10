@@ -116,6 +116,59 @@ public:
 				}
 			}
 			std::cout << std::endl;
+		} else if (value == "io.read") {
+			int value;
+			std::cin >> value;
+			return value;
+		}
+		return 0;
+	}
+};
+
+
+class LoopNode : public Node {
+public:
+	LoopNode(std::shared_ptr<Node> condition, std::shared_ptr<Node> body, bool while_loop = true) :
+		Node("Loop", while_loop ? "while" : "do while") {
+			children.push_back(condition);
+			children.push_back(body);
+	}
+	virtual Value execute(Environment & e) {
+		auto itr = children.begin();
+		auto condition = *itr;
+		auto body = *++itr;
+		e.new_context();
+		if (value == "while") {
+			while (condition->execute(e).as_bool()) {
+				body->execute(e);
+			}
+		} else {
+			do {
+				body->execute(e);
+			} while (condition->execute(e).as_bool());
+				
+		}
+
+		e.clear_context();
+		return 0;
+	}
+};
+
+class IfNode : public Node {
+public:
+	IfNode(std::shared_ptr<Node> condition, std::shared_ptr<Node> body) :
+		Node("If", "") {
+			children.push_back(condition);
+			children.push_back(body);
+	}
+	virtual Value execute(Environment & e) {
+		for (auto itr = children.begin(); itr != children.end(); ++itr) {
+				auto condition = *itr;
+				auto body = *++itr;
+				if (condition->execute(e).as_bool()) {
+					body->execute(e);
+					break;
+				}
 		}
 		return 0;
 	}
@@ -123,7 +176,6 @@ public:
 
 class MathNode : public Node {
 public:
-	enum class Op {PLUS, MIN, MUL, DIV};
 	MathNode(const std::string & op, std::shared_ptr<Node> left, std::shared_ptr<Node> right) :
 		Node("math", op) {
 			children.push_back(left);
@@ -152,6 +204,38 @@ public:
 			return static_cast<int>(result);
 		}
 		return result;
+	}
+};
+
+class CompNode : public Node {
+public:
+	CompNode(const std::string & op, std::shared_ptr<Node> left, std::shared_ptr<Node> right) :
+		Node("math", op) {
+			children.push_back(left);
+			children.push_back(right);
+		}
+	virtual Value execute(Environment & e) {
+		if (children.size() < 2) {
+			throw std::invalid_argument( "Not two children present" );
+		}
+		auto itr = children.begin();
+		auto left = (*itr)->execute(e);
+		auto right = (*++itr)->execute(e);
+		if (value == "==") {
+			return left == right;
+		} else if (value == "!=") {
+			return left != right;
+		} else if (value == ">") {
+			return left > right;
+		} else if (value == "<") {
+			return left < right;
+		} else if (value == ">=") {
+			return left >= right;
+		} else if (value == "<=") {
+			return left <= right;
+		} else {
+			throw std::invalid_argument( "Unkwon compare" );
+		}
 	}
 };
 

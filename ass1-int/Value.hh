@@ -1,10 +1,10 @@
 #ifndef VALUE_H
 #define	VALUE_H
 
-
 #include <memory>
 #include <string>
 #include <algorithm>
+#include <type_traits>
 
 struct BaseStore {
 	virtual std::ostream& to_stream(std::ostream& stream) const = 0;
@@ -12,6 +12,7 @@ struct BaseStore {
 		return store.to_stream(stream);
 	}
 	virtual ~BaseStore() = default;
+	virtual bool operator== (const std::shared_ptr<BaseStore> &store) const = 0;
 };
 template <typename T>
 struct Store : public BaseStore {
@@ -19,6 +20,13 @@ struct Store : public BaseStore {
 	const T value;
 	virtual std::ostream& to_stream(std::ostream& stream) const {
 		return stream << std::boolalpha << value;
+	}
+	virtual bool operator== (const std::shared_ptr<BaseStore> &store) const {
+		auto ptr = std::dynamic_pointer_cast<Store<T>>(store);
+		if (ptr) {
+			return value == ptr->value;
+		}
+		return false;
 	}
 };
 
@@ -43,8 +51,9 @@ public:
 				auto ptr = std::dynamic_pointer_cast<Store<std::string>>(value);
 				return std::stoi(ptr->value);
 			}
+			default:
+				throw std::invalid_argument( "Unkwon value type" );
 		}
-		throw std::invalid_argument( "Unkwon value type" );
 	}
 	double as_double() const {
 		switch(type) {
@@ -64,8 +73,9 @@ public:
 				auto ptr = std::dynamic_pointer_cast<Store<std::string>>(value);
 				return std::stod(ptr->value);
 			}
+			default:
+				throw std::invalid_argument( "Unkwon value type" );
 		}
-		throw std::invalid_argument( "Unkwon value type" );
 	}
 	std::string as_string() const {
 		switch(type) {
@@ -85,8 +95,9 @@ public:
 				auto ptr = std::dynamic_pointer_cast<Store<std::string>>(value);
 				return ptr->value;
 			}
+			default:
+				throw std::invalid_argument( "Unkwon value type" );
 		}
-		throw std::invalid_argument( "Unkwon value type" );
 	}
 	bool as_bool() const {
 		switch(type) {
@@ -106,8 +117,9 @@ public:
 				auto ptr = std::dynamic_pointer_cast<Store<std::string>>(value);
 				return !ptr->value.empty();
 			}
+			default:
+				throw std::invalid_argument( "Unkwon value type" );
 		}
-		throw std::invalid_argument( "Unkwon value type" );
 	}
 	Value(bool v) : type(Type::BOOL), value(std::make_shared<Store<bool>>(v)) {}
 	Value(int v) : type(Type::INT), value(std::make_shared<Store<int>>(v)) {}
@@ -116,6 +128,43 @@ public:
 
 	friend std::ostream& operator<< (std::ostream& stream, const Value& value) {
 		stream << *value.value;
+	}
+
+	bool operator!= (const Value &value2) const {
+		return !(value2 == *this);
+	}
+	bool operator== (const Value &value2) const {
+		if (type == value2.type) {
+			if (type == Type::DOUBLE) {
+				return fabs(as_double() - value2.as_double()) < 0.0001;
+			}
+			return *value == value2.value;
+		}
+		if (type == Type::BOOL || type == Type::STRING ||
+					value2.type == Type::BOOL || value2.type == Type::STRING) {
+			throw std::invalid_argument( "Cannot compare string or bool with different type for == or !=" );
+		}
+		return fabs(as_double() - value2.as_double()) < 0.0001;
+	}
+	bool operator> (const Value &value2) const {
+		if (type == Type::BOOL || type == Type::STRING ||
+					value2.type == Type::BOOL || value2.type == Type::STRING) {
+			throw std::invalid_argument( "Cannot compare string or bool with > or <=" );
+		}
+		return as_double() > value2.as_double();
+	}
+	bool operator< (const Value &value2) const {
+		if (type == Type::BOOL || type == Type::STRING ||
+					value2.type == Type::BOOL || value2.type == Type::STRING) {
+			throw std::invalid_argument( "Cannot compare string or bool with < or >=" );
+		}
+		return as_double() < value2.as_double();
+	}
+	bool operator>= (const Value &value2) const {
+		return !(value2 < *this);
+	}
+	bool operator<= (const Value &value2) const {
+		return !(value2 > *this);
 	}
 
 	Type type;

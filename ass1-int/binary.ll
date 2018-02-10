@@ -19,6 +19,7 @@ then									{ return yy::parser::make_THEN(yytext); }
 \n           							{ return yy::parser::make_NEWL(yytext); }
 =           							{ return yy::parser::make_EQUALS(yytext); }
 ,           							{ return yy::parser::make_COMMA(yytext); }
+==|!=|>|<|>=|<=           				{ return yy::parser::make_COMP(yytext); }
 \(           							{ return yy::parser::make_OPENING_PARENTHESIS(yytext); }
 \)           							{ return yy::parser::make_CLOSING_PARENTHESIS(yytext); }
 \[           							{ return yy::parser::make_OPENING_SQUARE_BRACKET(yytext); }
