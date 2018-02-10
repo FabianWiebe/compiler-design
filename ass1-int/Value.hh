@@ -7,12 +7,19 @@
 #include <algorithm>
 
 struct BaseStore {
+	virtual std::ostream& to_stream(std::ostream& stream) const = 0;
+	friend std::ostream& operator<< (std::ostream& stream, const BaseStore& store) {
+		return store.to_stream(stream);
+	}
 	virtual ~BaseStore() = default;
 };
 template <typename T>
 struct Store : public BaseStore {
 	Store(const T & v) : BaseStore(), value(v) {};
 	const T value;
+	virtual std::ostream& to_stream(std::ostream& stream) const {
+		return stream << value;
+	}
 };
 
 class Value {
@@ -106,6 +113,11 @@ public:
 	Value(int v) : type(Type::INT), value(std::make_shared<Store<int>>(v)) {}
 	Value(double v) : type(Type::DOUBLE), value(std::make_shared<Store<double>>(v)) {}
 	Value(std::string v) : type(Type::STRING), value(std::make_shared<Store<std::string>>(v)) {}
+
+	friend std::ostream& operator<< (std::ostream& stream, const Value& value) {
+		stream << *value.value;
+	}
+
 	Type type;
 
 static Value parse_string(const std::string& s) {

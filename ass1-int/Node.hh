@@ -73,33 +73,17 @@ private:
 	}
 };
 
-class ConcatNode : public Node {
-public:
-	using Node::Node;
-	virtual Value execute(Environment & e) {
-		std::stringstream ss;
-		for (auto & child : children) {
-			ss << child->execute(e).as_string();
-		}
-		auto str = ss.str();
-		std::cout << "Concat to " << str << std::endl;
-		return Value(str);
-	}
-};
-
-class QuoteNode : public Node {
-public:
-	using Node::Node;
-	virtual Value execute(Environment & e) {
-		return Value(value);
-	}
-};
-
 class AssignmentNode : public Node {
 public:
-	AssignmentNode(std::shared_ptr<Node> n, std::shared_ptr<Node> v) :
-		Node("assignment", "="), name(n), value_node(v) {}
+	AssignmentNode(std::shared_ptr<Node> name, std::shared_ptr<Node> value) :
+		Node("assignment", "=") {
+			children.push_back(name);
+			children.push_back(value);
+		}
 	virtual Value execute(Environment & e) {
+		auto itr = children.begin();
+		auto name = *itr;
+		auto value_node = *++itr;
 		auto computed_value = value_node->execute(e);
 		e.set(name->value, computed_value);
 		std::cout << "Execute assignment: " << name->value << "=" << computed_value.as_string() << std::endl;
@@ -108,12 +92,9 @@ public:
 		}
 		return computed_value;
 	}
-private:
-	std::shared_ptr<Node> name;
-	std::shared_ptr<Node> value_node;
 };
 
-class VarNode : public Node {
+class WordNode : public Node {
 public:
 	using Node::Node;
 	virtual Value execute(Environment & e) {
@@ -123,72 +104,65 @@ public:
 	}
 };
 
-class WordNode : public Node {
-public:
-	using Node::Node;
-	virtual Value execute(Environment & e) {
-		return Value::parse_string(value);
-	}
-};
-
-class ShellNode : public Node {
-public:
-	using Node::Node;
-	virtual Value execute(Environment & e) {
-		std::cout << "Executing shell, creating new context" << std::endl;
-		e.new_context();
-		auto result = children.front()->execute(e);
-		std::cout << "Exiting shell, clearing context" << std::endl;
-		e.clear_context();
-		return result;
-	}
-};
-
 class CommandNode : public Node {
 public:
-	CommandNode(std::shared_ptr<Node> cmd) : Node("command",""), command(cmd) {}
+	CommandNode(std::string & command) : Node("command", command) {}
 	virtual Value execute(Environment & e) {
-		std::stringstream ss;
-		ss << command->value;
-		for (auto & child : children) {
-			ss << " " << child->execute(e).as_string();
+		if (value == "print") {
+			for (auto & child : children) {
+				std::cout << child->execute(e);
+			}
+			std::cout << std::endl;
 		}
-		auto str = ss.str();
-		std::cout << "Executing on bash: " << str << std::endl;
-		std::system(str.c_str());
-		return str;
+		return 0;
 	}
-private:
-	std::shared_ptr<Node> command;
 };
 
 class MathNode : public Node {
 public:
 	enum class Op {PLUS, MIN, MUL, DIV};
-	MathNode(Op op, std::shared_ptr<Node> l, std::shared_ptr<Node> r) :
-		Node("math", ""), operation(op), left(l), right(r) {}
-	virtual Value execute(Environment & e) {
-		switch(operation) {
-			case Op::PLUS:
-				return check_for_int(left->execute(e).as_double() + right->execute(e).as_double());
-			case Op::MIN:
-				return check_for_int(left->execute(e).as_double() - right->execute(e).as_double());
-			case Op::MUL:
-				return check_for_int(left->execute(e).as_double() * right->execute(e).as_double());
-			case Op::DIV:
-				return check_for_int(left->execute(e).as_double() / right->execute(e).as_double());
-			default:
-				throw std::invalid_argument( "Unkwon math operation" );
+	MathNode(const std::string & op, std::shared_ptr<Node> left, std::shared_ptr<Node> right) :
+		Node("math", op) {
+			children.push_back(left);
+			children.push_back(right);
 		}
+	virtual Value execute(Environment & e) {
+		if (children.size() < 2) {
+			throw std::invalid_argument( "Not two children present" );
+		}
+		auto itr = children.begin();
+		auto left = (*itr)->execute(e);
+		auto right = (*++itr)->execute(e);
+		double result;
+		if (value == "+") {
+			result = left.as_double() + right.as_double();
+		} else if (value == "-") {
+			result = left.as_double() - right.as_double();
+		} else if (value == "*") {
+			result = left.as_double() * right.as_double();
+		} else if (value == "/") {
+			result = left.as_double() / right.as_double();
+		} else {
+			throw std::invalid_argument( "Unkwon math operation" );
+		}
+		if (left.type == Value::Type::INT && right.type == Value::Type::INT && result == floor(result)) {
+			return static_cast<int>(result);
+		}
+		return result;
 	}
-private:
-	Value check_for_int(double value) {
-		if (value == floor(value)) return static_cast<int>(value);
+};
+
+class ValueNode : public Node {
+public:
+	ValueNode(bool val) : Node("bool", val ? "true" : "false"), value{val} {}
+	ValueNode(int val) : Node("int", std::to_string(val)), value{val} {}
+	ValueNode(double val) : Node("double", std::to_string(val)), value{val} {}
+	ValueNode(std::string val) : Node("string", val), value{val} {}
+	virtual Value execute(Environment & e) {
 		return value;
 	}
-	Op operation;
-	std::shared_ptr<Node> left;
-	std::shared_ptr<Node> right;
+private:
+	Value value;
 };
 
 #endif
