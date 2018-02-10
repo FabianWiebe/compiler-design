@@ -1,4 +1,6 @@
-#pragma once
+#ifndef VALUE_H
+#define	VALUE_H
+
 
 #include <memory>
 #include <string>
@@ -124,3 +126,5 @@ static Value parse_string(const std::string& s) {
 private:
 	std::shared_ptr<BaseStore> value;
 };
+
+#endif

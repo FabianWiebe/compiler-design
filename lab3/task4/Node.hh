@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NODE_H
+#define	NODE_H
 
 #include <string>
 #include <list>
@@ -12,6 +13,7 @@
 #include <sstream>
 #include <cstdlib>
 #include <fstream>
+#include <cmath>
 
 #include "Value.hh"
 #include "Environment.hh"
@@ -188,3 +190,5 @@ private:
 	std::shared_ptr<Node> left;
 	std::shared_ptr<Node> right;
 };
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ENVIRONMENT_H
+#define	ENVIRONMENT_H
 
 #include <stack>
 #include <map>
@@ -49,3 +50,5 @@ public:
 private:
 	std::stack<std::map<std::string, Value>> stack;
 };
+
+#endif
