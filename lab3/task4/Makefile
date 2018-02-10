@@ -7,4 +7,4 @@ binary.tab.cc: binary.yy
 lex.yy.c: binary.ll binary.tab.cc
 	flex binary.ll
 clean: 
-	rm -f binary.tab.* lex.yy.c* parser report.txt
+	rm -f binary.tab.* lex.yy.c* parser report.txt *.svg parse.txt

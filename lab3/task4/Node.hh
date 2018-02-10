@@ -25,21 +25,21 @@ public:
 	std::list<std::shared_ptr<Node>> children;
 	Node(std::string t = "uninitialised", std::string v = "uninitialised") : tag(t), value(v) {}
 	//Node() { tag="uninitialised"; value="uninitialised"; }   // Bison needs this.
-	void dump(int depth=0)
+	void dump(std::ostream& stream=std::cout, int depth=0)
 	{
 		if (depth == 0) std::cout << "Built a parse-tree:" << std::endl;
 	 	for (int i=0; i<depth; i++)
 	 		std::cout << "  ";
-	  	std::cout << tag << ":" << value << std::endl;
+	  	stream << tag << ":" << value << std::endl;
 	  	for (auto & i : children)
-	    	i->dump(depth+1);
+	    	i->dump(stream, depth+1);
 	}
-	void dump_as_graph(int depth=0)
+	void dump_as_graph(std::ostream& stream=std::cout, int depth=0)
 	{
-	  std::cout << "digraph {" << std::endl;
+	  stream << "digraph {" << std::endl;
 	  counter tag_counter;
-	  dump_graph_node(get_id(tag_counter, tag), tag_counter, depth);
-	  std::cout << "}" << std::endl;
+	  dump_graph_node(stream, get_id(tag_counter, tag), tag_counter, depth);
+	  stream << "}" << std::endl << std::endl;
 	}
 	friend std::ostream& operator<< (std::ostream& stream, const Node& node) {
 		stream << node.tag << " " << node.value;
@@ -62,13 +62,13 @@ private:
 		}
 		return tag + std::to_string(id);
 	}
-	void dump_graph_node(std::string id, counter& tag_counter, int depth=0)
+	void dump_graph_node(std::ostream& stream, std::string id, counter& tag_counter, int depth=0)
 	{
-	  std::cout << id << " [label=\"" << tag << ":" << value << "\"];" << std::endl;
+	  stream << id << " [label=\"" << tag << ":" << value << "\"];" << std::endl;
 	  for(auto i=children.begin(); i!=children.end(); i++) {
 	  	std::string child_id = get_id(tag_counter, (*i)->tag);
-	  	(*i)->dump_graph_node(child_id, tag_counter, depth + 1);
-	  	std::cout << id << " -> " << child_id << ";" << std::endl;
+	  	(*i)->dump_graph_node(stream, child_id, tag_counter, depth + 1);
+	  	stream << id << " -> " << child_id << ";" << std::endl;
 	  }
 	}
 };

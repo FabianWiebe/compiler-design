@@ -7,6 +7,7 @@
 }
 %x STRING
 %option noyywrap nounput batch noinput
+FILE *yyin;
 NOT_SPECIAL [^\n|; $\t\\'"=<()+\-*/]
 DBL [0-9]*\.[0-9]+|[0-9]+\.[0-9]*
 %%
