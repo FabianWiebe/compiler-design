@@ -41,9 +41,9 @@ public:
 		stream << "Current context: (Size: " << mapping.size() << ")" << std::endl;
 		for (auto & pair : mapping) {
 			if (pair.second.type == Value::Type::STRING) {
-				stream << pair.first << ":\"" << pair.second.as_string() << "\"" << std::endl;
+				stream << pair.first << ":\"" << pair.second << "\"" << std::endl;
 			} else {
-				stream << pair.first << ":" << pair.second.as_string() << std::endl;
+				stream << pair.first << ":" << pair.second << std::endl;
 			}
 		}
 	}

@@ -18,7 +18,7 @@ struct Store : public BaseStore {
 	Store(const T & v) : BaseStore(), value(v) {};
 	const T value;
 	virtual std::ostream& to_stream(std::ostream& stream) const {
-		return stream << value;
+		return stream << std::boolalpha << value;
 	}
 };
 

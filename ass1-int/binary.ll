@@ -30,14 +30,10 @@ then									{ return yy::parser::make_THEN(yytext); }
 \-										{ return yy::parser::make_MINUS(yytext); }
 \*										{ return yy::parser::make_MUL(yytext); }
 \/										{ return yy::parser::make_DIV(yytext); }
-'([^'\\]|\\.)*'							{ std::string text(yytext);
+'([^'\\]|\\.)*'|\"([^"\\]|\\.)*\"		{ std::string text(yytext);
+											std::string value = text.substr(1, text.length()-2);
 											return yy::parser::make_VALUE(
-													std::make_shared<ValueNode>(
-														text.substr(1, text.length()-2))); }
-\"([^"\\]|\\.)*\"						{ std::string text(yytext);
-											return yy::parser::make_VALUE(
-													std::make_shared<ValueNode>(
-														text.substr(1, text.length()-2))); }
+													std::make_shared<ValueNode>(value)); }
 [0-9]*\.[0-9]+							{ std::string text(yytext);
 											double value = std::stod(text);
 											return yy::parser::make_VALUE(

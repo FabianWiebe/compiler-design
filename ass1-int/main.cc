@@ -21,11 +21,11 @@ int main(int argc, char **argv)
 		parse_tree_file.open("parse.txt");
 		root->dump_as_graph(parse_tree_file);
 		parse_tree_file.close();
-		//root->dump();
-		//std::cout << std::endl;
+		root->dump();
+		std::cout << std::endl;
 		Environment e;
 		root->execute(e);
-		//std::cout << e;
+		std::cout << e;
 	}
 	if (argc > 1) {
 		fclose(yyin);
