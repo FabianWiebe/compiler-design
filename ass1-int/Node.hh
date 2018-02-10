@@ -86,7 +86,6 @@ public:
 		auto value_node = *++itr;
 		auto computed_value = value_node->execute(e);
 		e.set(name->value, computed_value);
-		std::cout << "Execute assignment: " << name->value << "=" << computed_value.as_string() << std::endl;
 		if (!children.empty()) {
 			children.front()->execute(e);
 		}
@@ -99,7 +98,6 @@ public:
 	using Node::Node;
 	virtual Value execute(Environment & e) {
 		auto retrieved_value = e.get(value);
-		std::cout << "From " << value << " retrieved " << retrieved_value.as_string() << std::endl;
 		return retrieved_value;
 	}
 };
@@ -109,8 +107,13 @@ public:
 	CommandNode(std::string & command) : Node("command", command) {}
 	virtual Value execute(Environment & e) {
 		if (value == "print") {
-			for (auto & child : children) {
-				std::cout << child->execute(e);
+			bool first = true;
+			if (!children.empty()) {
+				for (auto & child : children) {
+					if (!first) std::cout << '\t';
+					first = false;
+					std::cout << child->execute(e);
+				}
 			}
 			std::cout << std::endl;
 		}

@@ -28,7 +28,8 @@
 %type <std::shared_ptr<Node>> unit
 %type <std::shared_ptr<AssignmentNode>> assignment
 %type <std::shared_ptr<Node>> plus_minus
-%type <std::shared_ptr<Node>> mul_div
+%type <std::shared_ptr<Node>> mul_div params
+%type <std::string> opt_blank
 %token END 0 "end of file"
 %%
 stream : optline              { $$ = std::make_shared<Node>("stream","");
@@ -39,38 +40,48 @@ stream : optline              { $$ = std::make_shared<Node>("stream","");
                                 root = $$;}
        ;
 
-optline : /*empty*/   { $$ = std::make_shared<Node>("optline","empty"); }
+optline : opt_blank   { $$ = std::make_shared<Node>("optline","empty"); }
         | line        { $$ = std::make_shared<Node>("optline","has line");
                          $$->children.push_back($1); }
         ;
 
-line : command               { $$ = $1; }
-      | BLANK command       { $$ = $2; }
-      | BLANK               { $$ = std::make_shared<Node>("optline","empty"); }
+line : opt_blank command       { $$ = $2; }
       ;
 
-command : WORD OPENING_PARENTHESIS plus_minus CLOSING_PARENTHESIS {
+command : WORD opt_blank OPENING_PARENTHESIS opt_blank params CLOSING_PARENTHESIS opt_blank {
                       $$ = std::make_shared<CommandNode>($1->value);
-                      $$->children.push_back($3); }
-
+                      $$->children = $5->children; }
+      | WORD opt_blank OPENING_PARENTHESIS opt_blank CLOSING_PARENTHESIS opt_blank {
+                      $$ = std::make_shared<CommandNode>($1->value); }
        | assignment    { $$ = $1; }
         ;
 
-unit : WORD       { $$ = $1; }
-       | VALUE    { $$ = $1; }
-       | command    { $$ = $1; }
-       | OPENING_PARENTHESIS plus_minus CLOSING_PARENTHESIS { $$ = $2; }
+params : plus_minus              { $$ = std::make_shared<Node>("parameters",""); 
+                                    $$->children.push_back($1); }
+      | params COMMA opt_blank plus_minus { $$ = $1;
+                                              $$->children.push_back($4); }
+      ;
+
+unit : WORD opt_blank      { $$ = $1; }
+       | VALUE opt_blank   { $$ = $1; }
+       | command          { $$ = $1; }
+       | OPENING_PARENTHESIS opt_blank plus_minus CLOSING_PARENTHESIS opt_blank { $$ = $3; }
        ;
 
-assignment : WORD EQUALS plus_minus { $$ = std::make_shared<AssignmentNode>($1, $3); }
+assignment : WORD opt_blank EQUALS opt_blank plus_minus {
+                                    $$ = std::make_shared<AssignmentNode>($1, $5); }
             ;
 
 plus_minus : mul_div { $$ = $1; }
-      | plus_minus PLUS mul_div { $$ = std::make_shared<MathNode>($2, $1, $3); }
-      | plus_minus MINUS mul_div { $$ = std::make_shared<MathNode>($2, $1, $3); }
+      | plus_minus PLUS opt_blank mul_div { $$ = std::make_shared<MathNode>($2, $1, $4); }
+      | plus_minus MINUS opt_blank mul_div { $$ = std::make_shared<MathNode>($2, $1, $4); }
       ;
 
 mul_div : unit { $$ = $1; }
-      | mul_div MUL unit { $$ = std::make_shared<MathNode>($2, $1, $3); }
-      | mul_div DIV unit { $$ = std::make_shared<MathNode>($2, $1, $3); }
+      | mul_div MUL opt_blank unit { $$ = std::make_shared<MathNode>($2, $1, $4); }
+      | mul_div DIV opt_blank unit { $$ = std::make_shared<MathNode>($2, $1, $4); }
       ;
+
+opt_blank : BLANK       { $$ = $1; }
+          | /*empty*/   { $$ = ""; }
+          ;

@@ -7,7 +7,7 @@
 }
 %option noyywrap nounput batch noinput
 FILE *yyin;
-NOT_SPECIAL [^\n| \t'"=<>()+\-*/0-9]
+NOT_SPECIAL [^\n| \t'"=<>()+\-*/0-9,]
 %%
 for										{ return yy::parser::make_FOR(yytext); }
 do										{ return yy::parser::make_DO(yytext); }
