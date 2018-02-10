@@ -10,7 +10,7 @@
 NOT_SPECIAL [^\n|; $\t\\'"=<()+\-*/]
 DBL [0-9]*\.[0-9]+|[0-9]+\.[0-9]*
 %%
-({NOT_SPECIAL}|\\.)*					{ return yy::parser::make_WORD(
+({NOT_SPECIAL}|\\.)+					{ return yy::parser::make_WORD(
 													std::make_unique<WordNode>("WORD", yytext)); }
 \n           							{ return yy::parser::make_NEWL(yytext); }
 \|           							{ return yy::parser::make_PIPE(yytext); }
