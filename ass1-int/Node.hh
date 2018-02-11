@@ -27,9 +27,9 @@ public:
 	//Node() { tag="uninitialised"; value="uninitialised"; }   // Bison needs this.
 	void dump(std::ostream& stream=std::cout, int depth=0)
 	{
-		if (depth == 0) std::cout << "Built a parse-tree:" << std::endl;
+		if (depth == 0) stream << "Built a parse-tree:" << std::endl;
 	 	for (int i=0; i<depth; i++)
-	 		std::cout << "  ";
+	 		stream << "  ";
 	  	stream << tag << ":" << value << std::endl;
 	  	for (auto & i : children)
 	    	i->dump(stream, depth+1);
@@ -209,6 +209,8 @@ public:
 			result = left.as_double() * right.as_double();
 		} else if (value == "/") {
 			result = left.as_double() / right.as_double();
+		} else if (value == "^") {
+			result = std::pow(left.as_double(), right.as_double());
 		} else {
 			throw std::invalid_argument( "Unkwon math operation" );
 		}

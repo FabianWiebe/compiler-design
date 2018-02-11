@@ -4,4 +4,3 @@ z = y - x*x
 print(x,y,z)
 z = z*z
 print(z)
-

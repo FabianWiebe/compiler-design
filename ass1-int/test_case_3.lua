@@ -9,4 +9,3 @@ io.write("factorial of ")
 io.write(n)
 io.write(" is ")
 print(x)
-
