@@ -79,7 +79,7 @@ public:
 		Node("assignment", "=") {
 			children.push_back(name);
 			children.push_back(value);
-		}
+	}
 	virtual Value execute(Environment & e) {
 		auto itr = children.begin();
 		auto name = *itr;
@@ -102,11 +102,24 @@ public:
 	}
 };
 
+
+class IncrementNode : public Node {
+public:
+	IncrementNode(std::string variable_name) :
+		Node("Increment", variable_name) {}
+	virtual Value execute(Environment & e) {
+		auto retrieved_value = e.get(value);
+		Value incremented_value(retrieved_value.as_int() + 1);
+		e.set(value, incremented_value);
+		return incremented_value;
+	}
+};
+
 class CommandNode : public Node {
 public:
 	CommandNode(std::string & command) : Node("command", command) {}
 	virtual Value execute(Environment & e) {
-		if (value == "print") {
+		if (value == "print" || value == "io.write") {
 			bool first = true;
 			if (!children.empty()) {
 				for (auto & child : children) {
@@ -115,7 +128,9 @@ public:
 					std::cout << child->execute(e);
 				}
 			}
-			std::cout << std::endl;
+			if (value == "print") {
+				std::cout << std::endl;
+			}
 		} else if (value == "io.read") {
 			int value;
 			std::cin >> value;
@@ -137,7 +152,6 @@ public:
 		auto itr = children.begin();
 		auto condition = *itr;
 		auto body = *++itr;
-		e.new_context();
 		if (value == "while") {
 			while (condition->execute(e).as_bool()) {
 				body->execute(e);
@@ -148,8 +162,6 @@ public:
 			} while (condition->execute(e).as_bool());
 				
 		}
-
-		e.clear_context();
 		return 0;
 	}
 };
@@ -210,7 +222,7 @@ public:
 class CompNode : public Node {
 public:
 	CompNode(const std::string & op, std::shared_ptr<Node> left, std::shared_ptr<Node> right) :
-		Node("math", op) {
+		Node("compare", op) {
 			children.push_back(left);
 			children.push_back(right);
 		}

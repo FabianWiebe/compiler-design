@@ -59,6 +59,16 @@ command : WORD opt_blank OPENING_PARENTHESIS opt_blank params CLOSING_PARENTHESI
                       $$ = std::make_shared<CommandNode>($1->value); }
       | IF opt_blank plus_minus THEN opt_blank stream END_KW opt_blank {
                       $$ = std::make_shared<IfNode>($3, $6); }
+      | FOR opt_blank assignment COMMA opt_blank plus_minus DO opt_blank stream END_KW opt_blank {
+                      $$ = std::make_shared<Node>("For loop", "");
+                      $$->children.push_back($3);
+                      auto incr = std::make_shared<IncrementNode>($3->children.front()->value);
+                      auto cmp = std::make_shared<CompNode>("<=", $3->children.front(), $6);
+                      auto body = std::make_shared<Node>("loop body", "");
+                      body->children.push_back($9);
+                      body->children.push_back(incr);
+                      auto loop = std::make_shared<LoopNode>(cmp, body);
+                      $$->children.push_back(loop); }
       | assignment    { $$ = $1; }
       ;
 

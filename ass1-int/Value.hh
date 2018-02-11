@@ -154,17 +154,17 @@ public:
 		return as_double() > value2.as_double();
 	}
 	bool operator< (const Value &value2) const {
+		return value2 > *this;
+	}
+	bool operator>= (const Value &value2) const {
 		if (type == Type::BOOL || type == Type::STRING ||
 					value2.type == Type::BOOL || value2.type == Type::STRING) {
 			throw std::invalid_argument( "Cannot compare string or bool with < or >=" );
 		}
-		return as_double() < value2.as_double();
-	}
-	bool operator>= (const Value &value2) const {
-		return !(value2 < *this);
+		return as_double() >= value2.as_double();
 	}
 	bool operator<= (const Value &value2) const {
-		return !(value2 > *this);
+		return value2 >= *this;
 	}
 
 	Type type;
