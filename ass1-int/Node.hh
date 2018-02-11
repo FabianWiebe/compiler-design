@@ -211,6 +211,8 @@ public:
 			result = left.as_double() / right.as_double();
 		} else if (value == "^") {
 			result = std::pow(left.as_double(), right.as_double());
+		} else if (value == "%") {
+			result = left.as_int() % right.as_int();
 		} else {
 			throw std::invalid_argument( "Unkwon math operation" );
 		}

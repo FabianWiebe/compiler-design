@@ -19,10 +19,8 @@
 %token <std::string> NEWL
 %token <std::string> COMMA
 %token <std::string> BLANK
-%token <std::string> EQUALS
 %token <std::string> OPENING_PARENTHESIS CLOSING_PARENTHESIS OPENING_CURLY_BRACKET CLOSING_CURLY_BRACKET OPENING_SQUARE_BRACKET CLOSING_SQUARE_BRACKET
 %token <std::string> FOR DO END_KW REPEAT UNTIL IF THEN
-%token <std::string> COMP
 %token <std::shared_ptr<ValueNode>> VALUE
 %token <std::shared_ptr<Node>> WORD
 %type <std::shared_ptr<Node>> stream
@@ -32,10 +30,13 @@
 %type <std::shared_ptr<Node>> unit
 %type <std::shared_ptr<AssignmentNode>> assignment
 %type <std::shared_ptr<Node>> params
+%type <std::string> opt_newl
 %token END 0 "end of file"
 
+%left <std::string> EQUALS
+%left <std::string> COMP
 %left PLUS MINUS
-%left MUL DIV
+%left MUL DIV MOD
 %left POW
 
 %start stream
@@ -57,13 +58,13 @@ optline : /*empty*/  { $$ = std::make_shared<Node>("optline","empty"); }
 line : command       { $$ = $1; }
       | IF unit THEN stream END_KW {
                       $$ = std::make_shared<IfNode>($2, $4); }
-      | FOR assignment COMMA unit DO stream END_KW {
+      | FOR assignment COMMA unit opt_newl DO stream END_KW {
                       $$ = std::make_shared<Node>("For loop", "");
                       $$->children.push_back($2);
                       auto incr = std::make_shared<IncrementNode>($2->children.front()->value);
                       auto cmp = std::make_shared<CompNode>("<=", $2->children.front(), $4);
                       auto body = std::make_shared<Node>("loop body", "");
-                      body->children.push_back($6);
+                      body->children.push_back($7);
                       body->children.push_back(incr);
                       auto loop = std::make_shared<LoopNode>(cmp, body);
                       $$->children.push_back(loop); }
@@ -97,8 +98,14 @@ unit : WORD      { $$ = $1; }
       | unit MUL unit { $$ = std::make_shared<MathNode>("*", $1, $3); }
       | unit DIV unit { $$ = std::make_shared<MathNode>("/", $1, $3); }
       | unit POW unit { $$ = std::make_shared<MathNode>("^", $1, $3); }
+      | unit MOD unit { $$ = std::make_shared<MathNode>("%", $1, $3); }
       ;
 
 assignment : WORD EQUALS unit {
                                     $$ = std::make_shared<AssignmentNode>($1, $3); }
             ;
+
+opt_newl : /*empy*/  { $$ = ""; }
+        | NEWL          { $$ = $1; }
+        ;
+
