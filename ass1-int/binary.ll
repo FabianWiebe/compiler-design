@@ -9,7 +9,7 @@
 /* %option debug */
 FILE *yyin;
 
-NOT_SPECIAL [^\n| \t'"=<>()+\-*/0-9,%^]
+NOT_SPECIAL [^\n| \t'"=<>()+\-*/0-9,%^#\[\]{}]
 
 %%
 
@@ -37,6 +37,7 @@ then									{ return yy::parser::make_THEN(yytext); }
 "/"										{ return yy::parser::make_DIV(); }
 "^"										{ return yy::parser::make_POW(); }
 "%"										{ return yy::parser::make_MOD(); }
+"#"										{ return yy::parser::make_SIZE(); }
 '([^'\\]|\\.)*'|\"([^"\\]|\\.)*\"		{ std::string text(yytext);
 											std::string value = text.substr(1, text.length()-2);
 											return yy::parser::make_VALUE(
@@ -54,7 +55,7 @@ then									{ return yy::parser::make_THEN(yytext); }
 											return yy::parser::make_VALUE(
 													std::make_shared<ValueNode>(value)); }
 {NOT_SPECIAL}+								{ return yy::parser::make_WORD(
-													std::make_shared<WordNode>("WORD", yytext)); }
+													std::make_shared<WordNode>("word", yytext)); }
 <<EOF>>    								   return yy::parser::make_END();
 
 %%

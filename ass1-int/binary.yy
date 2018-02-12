@@ -38,6 +38,7 @@
 %left PLUS MINUS
 %left MUL DIV MOD
 %left POW
+%left SIZE
 
 %start stream
 
@@ -68,8 +69,11 @@ line : command       { $$ = $1; }
                       body->children.push_back(incr);
                       auto loop = std::make_shared<LoopNode>(cmp, body);
                       $$->children.push_back(loop); }
+      | REPEAT stream UNTIL unit { auto neg_check = std::make_shared<NotNode>($4);
+                              $$ = std::make_shared<LoopNode>(neg_check, $2, false); }
       | WORD unit { $$ = std::make_shared<CommandNode>($1->value);
                       $$->children.push_back($2); }
+      | assignment    { $$ = $1; }
       ;
 
 command : WORD OPENING_PARENTHESIS params CLOSING_PARENTHESIS {
@@ -77,7 +81,6 @@ command : WORD OPENING_PARENTHESIS params CLOSING_PARENTHESIS {
                       $$->children = $3->children; }
       | WORD OPENING_PARENTHESIS CLOSING_PARENTHESIS {
                       $$ = std::make_shared<CommandNode>($1->value); }
-      | assignment    { $$ = $1; }
       ;
 
 
@@ -90,6 +93,11 @@ params : unit              { $$ = std::make_shared<Node>("parameters","");
 
 unit : WORD      { $$ = $1; }
         | OPENING_PARENTHESIS unit CLOSING_PARENTHESIS { $$ = $2; }
+        | OPENING_CURLY_BRACKET params CLOSING_CURLY_BRACKET {
+                      $$ = std::make_shared<ArrayNode>("Array", "");
+                      $$->children = $2->children; }
+      | WORD OPENING_SQUARE_BRACKET unit CLOSING_SQUARE_BRACKET {
+                      $$ = std::make_shared<ArrayAccessNode>($1, $3); }
        | VALUE   { $$ = $1; }
        | command          { $$ = $1; }
        | unit COMP unit { $$ = std::make_shared<CompNode>($2, $1, $3); }
@@ -99,13 +107,16 @@ unit : WORD      { $$ = $1; }
       | unit DIV unit { $$ = std::make_shared<MathNode>("/", $1, $3); }
       | unit POW unit { $$ = std::make_shared<MathNode>("^", $1, $3); }
       | unit MOD unit { $$ = std::make_shared<MathNode>("%", $1, $3); }
+      | SIZE unit { $$ = std::make_shared<SizeNode>($2); }
       ;
 
 assignment : WORD EQUALS unit {
                                     $$ = std::make_shared<AssignmentNode>($1, $3); }
+            | WORD OPENING_SQUARE_BRACKET unit CLOSING_SQUARE_BRACKET EQUALS unit{
+                      $$ = std::make_shared<AssignmentNode>($1, $6, $3); }
             ;
 
-opt_newl : /*empy*/  { $$ = ""; }
+opt_newl : /*empty*/  { $$ = ""; }
         | NEWL          { $$ = $1; }
         ;
 

@@ -16,7 +16,11 @@ int main(int argc, char **argv)
 	if (argc > 1) {
 		yyin = fopen(argv[1], "r");
 	}
-	if(!parser.parse()) {
+	bool result = parser.parse();
+	if (argc > 1) {
+		fclose(yyin);
+	}
+	if (!result) {
 		std::ofstream parse_tree_file;
 		parse_tree_file.open("parse.txt");
 		root->dump_as_graph(parse_tree_file);
@@ -27,9 +31,6 @@ int main(int argc, char **argv)
 		Environment e;
 		root->execute(e);
 		//std::cout << e;
-	}
-	if (argc > 1) {
-		fclose(yyin);
 	}
 	return 0;
 }

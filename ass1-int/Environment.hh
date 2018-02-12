@@ -19,7 +19,7 @@ public:
 	void clear_context() {
 		stack.pop();
 	}
-	void set(std::string name, Value value) {
+	void set(std::string& name, Value& value) {
 		auto & mapping = stack.top();
 		auto it = mapping.find(name);
 		if (it != mapping.end()) {
@@ -28,7 +28,7 @@ public:
 			mapping.insert(std::make_pair(name, value));
 		}
 	}
-	Value& get(std::string name) {
+	Value get(std::string name) {
 		auto mapping = stack.top();
 		auto it = mapping.find(name);
 		if (it != mapping.end()) {

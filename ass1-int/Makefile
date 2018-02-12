@@ -1,7 +1,7 @@
-int: lex.yy.c binary.tab.o main.cc Node.hh Environment.hh Value.hh
-	g++ -std=c++14 -g -oint binary.tab.o lex.yy.c main.cc
+int: lex.yy.c binary.tab.o main.cc Node.hh Environment.hh Value.hh Value.cpp
+	g++ -std=c++11 -g -oint binary.tab.o lex.yy.c main.cc Value.cpp
 binary.tab.o: binary.tab.cc Node.hh Environment.hh Value.hh
-	g++ -std=c++14 -g -c binary.tab.cc
+	g++ -std=c++11 -g -c binary.tab.cc
 binary.tab.cc: binary.yy
 	bison -v --report-file=report.txt binary.yy
 lex.yy.c: binary.ll binary.tab.cc

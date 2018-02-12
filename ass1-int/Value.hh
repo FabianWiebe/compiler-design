@@ -5,6 +5,9 @@
 #include <string>
 #include <algorithm>
 #include <type_traits>
+#include <vector>
+#include <map>
+#include <cmath>
 
 struct BaseStore {
 	virtual std::ostream& to_stream(std::ostream& stream) const = 0;
@@ -30,9 +33,31 @@ struct Store : public BaseStore {
 	}
 };
 
+	class Value;
+
+struct ArrayContainer : public BaseStore {
+	ArrayContainer(std::vector<Value> array) : value(array) {}
+	virtual std::ostream& to_stream(std::ostream& stream) const;
+	virtual bool operator== (const std::shared_ptr<BaseStore> &store) const {
+		auto ptr = std::dynamic_pointer_cast<ArrayContainer>(store);
+		if (ptr) {
+			return this == ptr.get();
+		}
+		return false;
+	}
+	std::vector<Value> value;
+};
+
+
 class Value {
 public:
-	enum class Type {BOOL, INT, DOUBLE, STRING};
+	enum class Type {BOOL, INT, DOUBLE, STRING, ARRAY, FUNCTION};
+	using TypeMap = std::map<Type, std::string>;
+	TypeMap m{TypeMap::value_type(Type::BOOL, "BOOL"), TypeMap::value_type(Type::INT, "INT"), TypeMap::value_type(Type::DOUBLE, "DOUBLE"),
+	TypeMap::value_type(Type::STRING, "STRING"), TypeMap::value_type(Type::ARRAY, "ARRAY"), TypeMap::value_type(Type::FUNCTION, "FUNCTION")};
+	const std::string & type_as_string() const {
+		return m.find(type)->second;
+	}
 	int as_int() const {
 		switch(type) {
 			case Type::BOOL: {
@@ -121,13 +146,28 @@ public:
 				throw std::invalid_argument( "Unkwon value type" );
 		}
 	}
+	std::vector<Value>& as_array() const {
+		switch(type) {
+			case Type::ARRAY: {
+				auto ptr = std::dynamic_pointer_cast<ArrayContainer>(value);
+				return ptr->value;
+			}
+			default:
+				throw std::invalid_argument( "Cannot convert to array from type " + type_as_string());
+		}
+	}
 	Value(bool v) : type(Type::BOOL), value(std::make_shared<Store<bool>>(v)) {}
 	Value(int v) : type(Type::INT), value(std::make_shared<Store<int>>(v)) {}
 	Value(double v) : type(Type::DOUBLE), value(std::make_shared<Store<double>>(v)) {}
 	Value(std::string v) : type(Type::STRING), value(std::make_shared<Store<std::string>>(v)) {}
-
+	Value(std::vector<Value> v) : type(Type::ARRAY), value(std::make_shared<ArrayContainer>(v)) {}
+	//Value(std::shared_ptr<BaseStore> v, Type t) : type(t), value(v) {}
 	friend std::ostream& operator<< (std::ostream& stream, const Value& value) {
-		stream << *value.value;
+		return stream << *value.value;
+	}
+
+	bool is_array() const {
+		return type == Type::ARRAY;
 	}
 
 	bool operator!= (const Value &value2) const {
@@ -169,21 +209,22 @@ public:
 
 	Type type;
 
-static Value parse_string(const std::string& s) {
-	if (s.find(".") != std::string::npos) {
-		try {
-	        return Value(std::stod(s));
+	static Value parse_string(const std::string& s) {
+		if (s.find(".") != std::string::npos) {
+			try {
+		        return Value(std::stod(s));
+		    } catch(...) {}
+		}
+	    try {
+	    	return Value(std::stoi(s));
 	    } catch(...) {}
+	   	std::string lower_case_str(s);
+	   	std::transform(lower_case_str.begin(), lower_case_str.end(), lower_case_str.begin(), ::tolower);
+	   	if (lower_case_str == "true") return Value(true);
+	   	if (lower_case_str == "false") return Value(false);
+	   	return Value(s);
 	}
-    try {
-    	return Value(std::stoi(s));
-    } catch(...) {}
-   	std::string lower_case_str(s);
-   	std::transform(lower_case_str.begin(), lower_case_str.end(), lower_case_str.begin(), ::tolower);
-   	if (lower_case_str == "true") return Value(true);
-   	if (lower_case_str == "false") return Value(false);
-   	return Value(s);
-}
+	friend ArrayContainer;
 private:
 	std::shared_ptr<BaseStore> value;
 };

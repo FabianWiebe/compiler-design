@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <cmath>
+#include <vector>
 
 #include "Value.hh"
 #include "Environment.hh"
@@ -80,15 +81,22 @@ public:
 			children.push_back(name);
 			children.push_back(value);
 	}
+	AssignmentNode(std::shared_ptr<Node> array, std::shared_ptr<Node> value, std::shared_ptr<Node> pos) :
+		AssignmentNode(array, value) {
+			children.push_back(pos);
+	}
 	virtual Value execute(Environment & e) {
 		auto itr = children.begin();
 		auto name = *itr;
 		auto value_node = *++itr;
 		auto computed_value = value_node->execute(e);
-		e.set(name->value, computed_value);
-		if (!children.empty()) {
-			children.front()->execute(e);
+		if (children.size() == 2) {
+			e.set(name->value, computed_value);
+		} else if (children.size() == 3) {
+			auto position = (*++itr)->execute(e).as_int() - 1;
+			e.get(name->value).as_array()[position] = computed_value;
 		}
+		
 		return computed_value;
 	}
 };
@@ -97,11 +105,62 @@ class WordNode : public Node {
 public:
 	using Node::Node;
 	virtual Value execute(Environment & e) {
-		auto retrieved_value = e.get(value);
-		return retrieved_value;
+		return e.get(value);
 	}
 };
 
+class NotNode : public Node {
+public:
+	NotNode(std::shared_ptr<Node> bool_value) :
+		Node("NotNode", "[]") {
+			children.push_back(bool_value);
+	}
+	virtual Value execute(Environment & e) {
+		return !children.front()->execute(e).as_bool();
+	}
+};
+
+
+class ArrayAccessNode : public Node {
+public:
+	ArrayAccessNode(std::shared_ptr<Node> array, std::shared_ptr<Node> position) :
+		Node("ArrayAccess", "[]") {
+			children.push_back(array);
+			children.push_back(position);
+	}
+	virtual Value execute(Environment & e) {
+		auto itr = children.begin();
+		auto array = (*itr)->execute(e).as_array();
+		auto position = (*++itr)->execute(e).as_int() - 1;
+		return array[position];
+	}
+};
+
+class ArrayNode : public Node {
+public:
+	using Node::Node;
+	virtual Value execute(Environment & e) {
+		std::vector<Value> array;
+		array.reserve(children.size());
+		for (auto & child : children) {
+			array.emplace_back(child->execute(e));
+		}
+		return array;
+	}
+};
+
+
+class SizeNode : public Node {
+public:
+	SizeNode(std::shared_ptr<Node> value) :
+		Node("Size", "#") {
+			children.push_back(value);
+	}
+	virtual Value execute(Environment & e) {
+		auto array = children.front()->execute(e).as_array();
+		return static_cast<int>(array.size());
+	}
+};
 
 class IncrementNode : public Node {
 public:
@@ -121,12 +180,11 @@ public:
 	virtual Value execute(Environment & e) {
 		if (value == "print" || value == "io.write") {
 			bool first = true;
-			if (!children.empty()) {
-				for (auto & child : children) {
-					if (!first) std::cout << '\t';
-					first = false;
-					std::cout << child->execute(e);
-				}
+			for (auto & child : children) {
+				if (!first) std::cout << '\t';
+				first = false;
+				auto result = child->execute(e);
+				std::cout << result;
 			}
 			if (value == "print") {
 				std::cout << std::endl;
@@ -134,6 +192,7 @@ public:
 		} else if (value == "io.read") {
 			int value;
 			std::cin >> value;
+			std::cerr << "read from std::cin : " << value << std::endl;
 			return value;
 		}
 		return 0;
@@ -260,7 +319,7 @@ public:
 	ValueNode(bool val) : Node("bool", val ? "true" : "false"), value{val} {}
 	ValueNode(int val) : Node("int", std::to_string(val)), value{val} {}
 	ValueNode(double val) : Node("double", std::to_string(val)), value{val} {}
-	ValueNode(std::string val) : Node("string", val), value{val} {}
+	ValueNode(std::string val) : Node("string", "\\\"" + val + "\\\""), value{val} {}
 	virtual Value execute(Environment & e) {
 		return value;
 	}
