@@ -20,7 +20,7 @@
 %token <std::string> COMMA
 %token <std::string> BLANK
 %token <std::string> OPENING_PARENTHESIS CLOSING_PARENTHESIS OPENING_CURLY_BRACKET CLOSING_CURLY_BRACKET OPENING_SQUARE_BRACKET CLOSING_SQUARE_BRACKET
-%token <std::string> FOR DO END_KW REPEAT UNTIL IF THEN
+%token <std::string> FOR DO END_KW REPEAT UNTIL IF THEN ELSE RETURN FUNCTION
 %token <std::shared_ptr<ValueNode>> VALUE
 %token <std::shared_ptr<Node>> WORD
 %type <std::shared_ptr<Node>> stream
@@ -29,7 +29,7 @@
 %type <std::shared_ptr<Node>> command
 %type <std::shared_ptr<Node>> unit
 %type <std::shared_ptr<AssignmentNode>> assignment simple_assignment
-%type <std::shared_ptr<Node>> params
+%type <std::shared_ptr<Node>> params function_params if
 %type <std::string> opt_newl
 %token END 0 "end of file"
 
@@ -56,9 +56,13 @@ optline : /*empty*/  { $$ = std::make_shared<Node>("optline","empty"); }
                          $$->children.push_back($1); }
         ;
 
+if  :  IF unit THEN stream END_KW { $$ = std::make_shared<IfNode>($2, $4); }
+    |  IF unit THEN stream ELSE stream END_KW { $$ = std::make_shared<IfNode>($2, $4);
+                                                $$->children.push_back($6); }
+    ;
+
 line : command       { $$ = $1; }
-      | IF unit THEN stream END_KW {
-                      $$ = std::make_shared<IfNode>($2, $4); }
+      | if { $$ = $1; }
       | FOR simple_assignment COMMA unit opt_newl DO stream END_KW {
                       $$ = std::make_shared<Node>("For loop", "");
                       $$->children.push_back($2);
@@ -71,14 +75,16 @@ line : command       { $$ = $1; }
                       $$->children.push_back(loop); }
       | REPEAT stream UNTIL unit { auto neg_check = std::make_shared<NotNode>($4);
                               $$ = std::make_shared<LoopNode>(neg_check, $2, false); }
-      | WORD unit { $$ = std::make_shared<CommandNode>($1->value);
-                      $$->children.push_back($2); }
+      | WORD params { $$ = std::make_shared<CommandNode>($1->value, $2); }
+      | simple_assignment    { $$ = $1; }
       | assignment    { $$ = $1; }
+      | RETURN unit { $$ = std::make_shared<ReturnNode>($2); }
+      | FUNCTION WORD OPENING_PARENTHESIS function_params CLOSING_PARENTHESIS stream END_KW
+            { $$ = std::make_shared<FunctionNode>($2->value, $4, $6); }
       ;
 
 command : WORD OPENING_PARENTHESIS params CLOSING_PARENTHESIS {
-                      $$ = std::make_shared<CommandNode>($1->value);
-                      $$->children = $3->children; }
+                      $$ = std::make_shared<CommandNode>($1->value, $3); }
       | WORD OPENING_PARENTHESIS CLOSING_PARENTHESIS {
                       $$ = std::make_shared<CommandNode>($1->value); }
       ;
@@ -88,6 +94,12 @@ command : WORD OPENING_PARENTHESIS params CLOSING_PARENTHESIS {
 params : unit              { $$ = std::make_shared<ArrayNode>("Array",""); 
                                     $$->children.push_back($1); }
       | params COMMA unit { $$ = $1;
+                                              $$->children.push_back($3); }
+      ;
+
+function_params : WORD              { $$ = std::make_shared<ArrayNode>("Array",""); 
+                                    $$->children.push_back($1); }
+      | params COMMA WORD { $$ = $1;
                                               $$->children.push_back($3); }
       ;
 

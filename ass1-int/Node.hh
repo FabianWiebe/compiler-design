@@ -47,12 +47,18 @@ public:
 	}
 	virtual Value execute(Environment & e) {
 		for (auto & child : children) {
-			child->execute(e);
+			auto result = child->execute(e);
+			if (e.returning) {
+				return result;
+			}
 		}
 		return Value(value);
 	}
 	virtual Value assign(Environment & e, Value value) {
 		throw std::invalid_argument( "Node is no left node" );
+	}
+	virtual Value call(Environment & e, Value parameter_values) {
+		throw std::invalid_argument( "Node is not a function" );
 	}
 
 	virtual ~Node() = default;
@@ -86,12 +92,9 @@ public:
 			children.push_back(v);
 	}
 	virtual Value execute(Environment & e) {
-		auto itr = children.begin();
-		auto left = *itr;
-		auto value = *++itr;
+		auto value = *(++children.begin());
 		auto computed_value = value->execute(e);
-		left->assign(e, computed_value);
-		return computed_value;
+		return children.front()->assign(e, computed_value);
 	}
 };
 
@@ -118,7 +121,6 @@ public:
 	}
 };
 
-
 class ArrayAccessNode : public Node {
 public:
 	ArrayAccessNode(std::shared_ptr<Node> array, std::shared_ptr<Node> position) :
@@ -141,6 +143,43 @@ public:
 	}
 };
 
+class FunctionNode : public Node {
+public:
+	FunctionNode(std::string name, std::shared_ptr<Node> parameters, std::shared_ptr<Node> body) :
+		Node("function", name) {
+			children.push_back(parameters);
+			children.push_back(body);
+	}
+	virtual Value execute(Environment & e) {
+		Value function_value(*this);
+		e.set(value, function_value);
+		return 0;
+	}
+	virtual Value call(Environment & e,  Value parameter_values) {
+		e.new_context();
+		// set paramets
+		children.front()->assign(e, parameter_values);
+
+		auto body = *(++children.begin());
+		auto result = body->execute(e);
+		e.clear_context();
+		return result;
+	}
+};
+
+class ReturnNode : public Node {
+public:
+	ReturnNode(std::shared_ptr<Node> expression) :
+		Node("return", "") {
+			children.push_back(expression);
+	}
+	virtual Value execute(Environment & e) {
+		auto result = children.front()->execute(e);
+		e.returning = true;
+		return result;
+	}
+};
+
 class ArrayNode : public Node {
 public:
 	using Node::Node;
@@ -153,6 +192,9 @@ public:
 		return array;
 	}
 	virtual Value assign(Environment & e, Value value) {
+		if (!value.is_array()) {
+			throw std::invalid_argument( "Value is no array" );
+		}
 		auto array = value.as_array();
 		if (children.size() != array.size()) {
 			throw std::invalid_argument( "Number of values must match number of variables" );
@@ -192,15 +234,42 @@ public:
 
 class CommandNode : public Node {
 public:
-	CommandNode(std::string & command) : Node("command", command) {}
+	CommandNode(std::string & command, std::shared_ptr<Node> parameters = std::make_shared<ArrayNode>("Array",""))
+		: Node("command", command) {
+			children.push_back(parameters);
+	}
 	virtual Value execute(Environment & e) {
 		if (value == "print" || value == "io.write") {
 			bool first = true;
-			for (auto & child : children) {
-				if (!first) std::cout << '\t';
-				first = false;
-				auto result = child->execute(e);
-				std::cout << result;
+			auto result_value = children.front()->execute(e);
+			if (result_value.is_array()) {
+				auto& array = result_value.as_array();
+				bool first = true;
+				auto seperator = value == "print" ? "\t" : "";
+				for (auto itr = array.begin(); itr != array.end(); ++itr) {
+					if (first) {
+						first = false;
+					} else {
+						std::cout << seperator;
+					}
+					auto value = *itr;
+					// replace /n with std::endl;
+					if (value.type == Value::Type::STRING) {
+						std::string str = value.as_string();
+						size_t position = 0;
+						auto result = str.find(std::string("\\n"), position);
+						while (result != std::string::npos) {
+							std::cout << str.substr(position, result - position) << std::endl;
+							position = result + 2;
+							result = str.find(std::string("\\n"), position);
+						}
+						std::cout << str.substr(position);
+					} else {
+						std::cout << value;
+					}
+				}
+			} else {
+				std::cout << result_value;
 			}
 			if (value == "print") {
 				std::cout << std::endl;
@@ -210,6 +279,13 @@ public:
 			std::cin >> value;
 			std::cerr << "read from std::cin : " << value << std::endl;
 			return value;
+		} else {
+			auto result = e.get(value);
+			if (!result.is_function()) {
+				throw std::invalid_argument( "Name is not a function" );
+			}
+			Node& function_node = result.as_function();
+			return function_node.call(e, children.front()->execute(e));
 		}
 		return 0;
 	}
@@ -229,11 +305,17 @@ public:
 		auto body = *++itr;
 		if (value == "while") {
 			while (condition->execute(e).as_bool()) {
-				body->execute(e);
+				auto result = body->execute(e);
+				if (e.returning) {
+					return result;
+				}
 			}
 		} else {
 			do {
-				body->execute(e);
+				auto result = body->execute(e);
+				if (e.returning) {
+					return result;
+				}
 			} while (condition->execute(e).as_bool());
 				
 		}
@@ -249,13 +331,16 @@ public:
 			children.push_back(body);
 	}
 	virtual Value execute(Environment & e) {
-		for (auto itr = children.begin(); itr != children.end(); ++itr) {
-				auto condition = *itr;
-				auto body = *++itr;
-				if (condition->execute(e).as_bool()) {
-					body->execute(e);
-					break;
-				}
+		auto itr = children.begin();
+		auto condition = *itr;
+		auto body = *++itr;
+		if (condition->execute(e).as_bool()) {
+			return body->execute(e);
+		} else {
+			if (children.size() > 2) {
+				auto else_part = *++itr;
+				return else_part->execute(e);
+			}
 		}
 		return 0;
 	}

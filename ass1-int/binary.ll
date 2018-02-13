@@ -20,6 +20,9 @@ repeat								{ return yy::parser::make_REPEAT(yytext); }
 until								{ return yy::parser::make_UNTIL(yytext); }
 if									{ return yy::parser::make_IF(yytext); }
 then								{ return yy::parser::make_THEN(yytext); }
+else								{ return yy::parser::make_ELSE(yytext); }
+return								{ return yy::parser::make_RETURN(yytext); }
+function								{ return yy::parser::make_FUNCTION(yytext); }
 [\n\r]+           					{ return yy::parser::make_NEWL(yytext); }
 "="           						{ return yy::parser::make_EQUALS(yytext); }
 ","           						{ return yy::parser::make_COMMA(yytext); }
