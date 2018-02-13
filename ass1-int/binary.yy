@@ -79,6 +79,7 @@ line : command       { $$ = $1; }
       | simple_assignment    { $$ = $1; }
       | assignment    { $$ = $1; }
       | RETURN unit { $$ = std::make_shared<ReturnNode>($2); }
+      | RETURN { $$ = std::make_shared<ReturnNode>(); }
       | FUNCTION WORD OPENING_PARENTHESIS function_params CLOSING_PARENTHESIS stream END_KW
             { $$ = std::make_shared<FunctionNode>($2->value, $4, $6); }
       ;

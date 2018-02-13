@@ -169,12 +169,16 @@ public:
 
 class ReturnNode : public Node {
 public:
-	ReturnNode(std::shared_ptr<Node> expression) :
-		Node("return", "") {
+	ReturnNode(std::shared_ptr<Node> expression = nullptr) : Node("return", "") {
+		if (expression) {
 			children.push_back(expression);
+		}
 	}
 	virtual Value execute(Environment & e) {
-		auto result = children.front()->execute(e);
+		Value result(0);
+		if (!children.empty()) {
+			result = children.front()->execute(e);
+		}
 		e.returning = true;
 		return result;
 	}
