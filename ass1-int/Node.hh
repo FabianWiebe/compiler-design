@@ -51,6 +51,10 @@ public:
 		}
 		return Value(value);
 	}
+	virtual Value assign(Environment & e, Value value) {
+		throw std::invalid_argument( "Node is no left node" );
+	}
+
 	virtual ~Node() = default;
 private:
 	std::string get_id(counter& tag_counter, std::string& tag) {
@@ -76,27 +80,17 @@ private:
 
 class AssignmentNode : public Node {
 public:
-	AssignmentNode(std::shared_ptr<Node> name, std::shared_ptr<Node> value) :
+	AssignmentNode(std::shared_ptr<Node> left, std::shared_ptr<Node> v) :
 		Node("assignment", "=") {
-			children.push_back(name);
-			children.push_back(value);
-	}
-	AssignmentNode(std::shared_ptr<Node> array, std::shared_ptr<Node> value, std::shared_ptr<Node> pos) :
-		AssignmentNode(array, value) {
-			children.push_back(pos);
+			children.push_back(left);
+			children.push_back(v);
 	}
 	virtual Value execute(Environment & e) {
 		auto itr = children.begin();
-		auto name = *itr;
-		auto value_node = *++itr;
-		auto computed_value = value_node->execute(e);
-		if (children.size() == 2) {
-			e.set(name->value, computed_value);
-		} else if (children.size() == 3) {
-			auto position = (*++itr)->execute(e).as_int() - 1;
-			e.get(name->value).as_array()[position] = computed_value;
-		}
-		
+		auto left = *itr;
+		auto value = *++itr;
+		auto computed_value = value->execute(e);
+		left->assign(e, computed_value);
 		return computed_value;
 	}
 };
@@ -107,12 +101,16 @@ public:
 	virtual Value execute(Environment & e) {
 		return e.get(value);
 	}
+	virtual Value assign(Environment & e, Value v) {
+		e.set(value, v);
+		return v;
+	}
 };
 
 class NotNode : public Node {
 public:
 	NotNode(std::shared_ptr<Node> bool_value) :
-		Node("NotNode", "[]") {
+		Node("NotNode", "!") {
 			children.push_back(bool_value);
 	}
 	virtual Value execute(Environment & e) {
@@ -134,6 +132,13 @@ public:
 		auto position = (*++itr)->execute(e).as_int() - 1;
 		return array[position];
 	}
+	virtual Value assign(Environment & e, Value value) {
+		auto itr = children.begin();
+		auto& array = (*itr)->execute(e).as_array();
+		auto position = (*++itr)->execute(e).as_int() - 1;
+		array[position] = value;
+		return value;
+	}
 };
 
 class ArrayNode : public Node {
@@ -146,6 +151,17 @@ public:
 			array.emplace_back(child->execute(e));
 		}
 		return array;
+	}
+	virtual Value assign(Environment & e, Value value) {
+		auto array = value.as_array();
+		if (children.size() != array.size()) {
+			throw std::invalid_argument( "Number of values must match number of variables" );
+		}
+		auto itr = array.begin();
+		for (auto & child : children) {
+			child->assign(e, *itr++);
+		}
+		return value;
 	}
 };
 

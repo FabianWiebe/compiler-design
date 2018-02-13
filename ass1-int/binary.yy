@@ -28,7 +28,7 @@
 %type <std::shared_ptr<Node>> line
 %type <std::shared_ptr<Node>> command
 %type <std::shared_ptr<Node>> unit
-%type <std::shared_ptr<AssignmentNode>> assignment
+%type <std::shared_ptr<AssignmentNode>> assignment simple_assignment
 %type <std::shared_ptr<Node>> params
 %type <std::string> opt_newl
 %token END 0 "end of file"
@@ -59,7 +59,7 @@ optline : /*empty*/  { $$ = std::make_shared<Node>("optline","empty"); }
 line : command       { $$ = $1; }
       | IF unit THEN stream END_KW {
                       $$ = std::make_shared<IfNode>($2, $4); }
-      | FOR assignment COMMA unit opt_newl DO stream END_KW {
+      | FOR simple_assignment COMMA unit opt_newl DO stream END_KW {
                       $$ = std::make_shared<Node>("For loop", "");
                       $$->children.push_back($2);
                       auto incr = std::make_shared<IncrementNode>($2->children.front()->value);
@@ -85,7 +85,7 @@ command : WORD OPENING_PARENTHESIS params CLOSING_PARENTHESIS {
 
 
 
-params : unit              { $$ = std::make_shared<Node>("parameters",""); 
+params : unit              { $$ = std::make_shared<ArrayNode>("Array",""); 
                                     $$->children.push_back($1); }
       | params COMMA unit { $$ = $1;
                                               $$->children.push_back($3); }
@@ -110,10 +110,10 @@ unit : WORD      { $$ = $1; }
       | SIZE unit { $$ = std::make_shared<SizeNode>($2); }
       ;
 
-assignment : WORD EQUALS unit {
-                                    $$ = std::make_shared<AssignmentNode>($1, $3); }
-            | WORD OPENING_SQUARE_BRACKET unit CLOSING_SQUARE_BRACKET EQUALS unit{
-                      $$ = std::make_shared<AssignmentNode>($1, $6, $3); }
+assignment : params EQUALS params { $$ = std::make_shared<AssignmentNode>($1, $3); }
+            ;
+
+simple_assignment : unit EQUALS unit { $$ = std::make_shared<AssignmentNode>($1, $3); }
             ;
 
 opt_newl : /*empty*/  { $$ = ""; }
