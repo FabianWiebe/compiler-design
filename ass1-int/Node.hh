@@ -25,7 +25,6 @@ public:
 	std::string tag, value;
 	std::list<std::shared_ptr<Node>> children;
 	Node(std::string t = "uninitialised", std::string v = "uninitialised") : tag(t), value(v) {}
-	//Node() { tag="uninitialised"; value="uninitialised"; }   // Bison needs this.
 	void dump(std::ostream& stream=std::cout, int depth=0)
 	{
 		if (depth == 0) stream << "Built a parse-tree:" << std::endl;
@@ -100,7 +99,7 @@ public:
 
 class WordNode : public Node {
 public:
-	using Node::Node;
+	WordNode(std::string v) : Node("var", v) {}
 	virtual Value execute(Environment & e) {
 		return e.get(value);
 	}
@@ -113,7 +112,7 @@ public:
 class NotNode : public Node {
 public:
 	NotNode(std::shared_ptr<Node> bool_value) :
-		Node("NotNode", "!") {
+		Node("not", "!") {
 			children.push_back(bool_value);
 	}
 	virtual Value execute(Environment & e) {
@@ -124,7 +123,7 @@ public:
 class ArrayAccessNode : public Node {
 public:
 	ArrayAccessNode(std::shared_ptr<Node> array, std::shared_ptr<Node> position) :
-		Node("ArrayAccess", "[]") {
+		Node("array_access", "[]") {
 			children.push_back(array);
 			children.push_back(position);
 	}
@@ -186,7 +185,7 @@ public:
 
 class ArrayNode : public Node {
 public:
-	using Node::Node;
+	ArrayNode() : Node("array", "") {}
 	virtual Value execute(Environment & e) {
 		std::vector<Value> array;
 		array.reserve(children.size());
@@ -215,7 +214,7 @@ public:
 class SizeNode : public Node {
 public:
 	SizeNode(std::shared_ptr<Node> value) :
-		Node("Size", "#") {
+		Node("size", "#") {
 			children.push_back(value);
 	}
 	virtual Value execute(Environment & e) {
@@ -227,7 +226,7 @@ public:
 class IncrementNode : public Node {
 public:
 	IncrementNode(std::string variable_name) :
-		Node("Increment", variable_name) {}
+		Node("increment", variable_name) {}
 	virtual Value execute(Environment & e) {
 		auto retrieved_value = e.get(value);
 		Value incremented_value(retrieved_value.as_int() + 1);
@@ -238,7 +237,7 @@ public:
 
 class CommandNode : public Node {
 public:
-	CommandNode(std::string & command, std::shared_ptr<Node> parameters = std::make_shared<ArrayNode>("Array",""))
+	CommandNode(std::string & command, std::shared_ptr<Node> parameters = std::make_shared<ArrayNode>())
 		: Node("command", command) {
 			children.push_back(parameters);
 	}
@@ -281,7 +280,10 @@ public:
 		} else if (value == "io.read") {
 			int value;
 			std::cin >> value;
-			std::cerr << "read from std::cin : " << value << std::endl;
+			if (std::cin.eof()) {
+				value = 0;
+				std::cerr << "from standard input read eof, default value " << value << " used" << std::endl;
+			}
 			return value;
 		} else {
 			auto result = e.get(value);
@@ -299,7 +301,7 @@ public:
 class LoopNode : public Node {
 public:
 	LoopNode(std::shared_ptr<Node> condition, std::shared_ptr<Node> body, bool while_loop = true) :
-		Node("Loop", while_loop ? "while" : "do while") {
+		Node("loop", while_loop ? "while" : "do while") {
 			children.push_back(condition);
 			children.push_back(body);
 	}
@@ -330,7 +332,7 @@ public:
 class IfNode : public Node {
 public:
 	IfNode(std::shared_ptr<Node> condition, std::shared_ptr<Node> body) :
-		Node("If", "") {
+		Node("if", "") {
 			children.push_back(condition);
 			children.push_back(body);
 	}

@@ -7,7 +7,7 @@
 }
 %option noyywrap nounput batch noinput
 /* %option debug */
-FILE *yyin;
+FILE *yyin; // needed to read from file instead of standard in
 
 NOT_SPECIAL [^\n| \t'"=<>()+\-*/0-9,%^#\[\]{}]
 
@@ -22,7 +22,7 @@ if									{ return yy::parser::make_IF(yytext); }
 then								{ return yy::parser::make_THEN(yytext); }
 else								{ return yy::parser::make_ELSE(yytext); }
 return								{ return yy::parser::make_RETURN(yytext); }
-function								{ return yy::parser::make_FUNCTION(yytext); }
+function							{ return yy::parser::make_FUNCTION(yytext); }
 [\n\r]+           					{ return yy::parser::make_NEWL(yytext); }
 "="           						{ return yy::parser::make_EQUALS(yytext); }
 ","           						{ return yy::parser::make_COMMA(yytext); }
@@ -34,13 +34,13 @@ function								{ return yy::parser::make_FUNCTION(yytext); }
 "{"           						{ return yy::parser::make_OPENING_CURLY_BRACKET(yytext); }
 "}"           						{ return yy::parser::make_CLOSING_CURLY_BRACKET(yytext); }
 [ \t]+								{ /* remove white spaces */ }
-"+"									{ return yy::parser::make_PLUS(); }
-"-"									{ return yy::parser::make_MINUS(); }
-"*"									{ return yy::parser::make_MUL(); }
-"/"									{ return yy::parser::make_DIV(); }
-"^"									{ return yy::parser::make_POW(); }
-"%"									{ return yy::parser::make_MOD(); }
-"#"									{ return yy::parser::make_SIZE(); }
+"+"									{ return yy::parser::make_PLUS(yytext); }
+"-"									{ return yy::parser::make_MINUS(yytext); }
+"*"									{ return yy::parser::make_MUL(yytext); }
+"/"									{ return yy::parser::make_DIV(yytext); }
+"^"									{ return yy::parser::make_POW(yytext); }
+"%"									{ return yy::parser::make_MOD(yytext); }
+"#"									{ return yy::parser::make_SIZE(yytext); }
 '([^'\\]|\\.)*'|\"([^"\\]|\\.)*\"	{ std::string text(yytext);
 										std::string value = text.substr(1, text.length()-2);
 										return yy::parser::make_VALUE(
@@ -58,7 +58,7 @@ function								{ return yy::parser::make_FUNCTION(yytext); }
 										return yy::parser::make_VALUE(
 												std::make_shared<ValueNode>(value)); }
 {NOT_SPECIAL}+						{ return yy::parser::make_WORD(
-													std::make_shared<WordNode>("word", yytext)); }
+													std::make_shared<WordNode>(yytext)); }
 <<EOF>>    							{ return yy::parser::make_END(); }
 
 %%
