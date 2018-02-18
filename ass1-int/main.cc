@@ -28,8 +28,13 @@ int main(int argc, char **argv)
 		
 		//root->dump();
 		//std::cout << std::endl;
-		Environment e;
-		root->execute(e);
+		Environment env;
+		try {
+			root->execute(env);
+		} catch (std::exception& exception) {
+			std::cerr << exception.what() << std::endl;
+		}
+		
 		//std::cout << e;
 	}
 	return 0;

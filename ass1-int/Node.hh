@@ -19,6 +19,12 @@
 #include "Value.hh"
 #include "Environment.hh"
 
+struct EofException : public std::exception {
+	const char * what () const throw () {
+		return "EOF during read from standard input";
+    }
+};
+
 class Node {
 	using counter = std::map<std::string, size_t>;
 public:
@@ -85,10 +91,9 @@ private:
 
 class AssignmentNode : public Node {
 public:
-	AssignmentNode(std::shared_ptr<Node> left, std::shared_ptr<Node> v) :
-		Node("assignment", "=") {
-			children.push_back(left);
-			children.push_back(v);
+	AssignmentNode(std::shared_ptr<Node> left, std::shared_ptr<Node> v) : Node("assignment", "=") {
+		children.push_back(left);
+		children.push_back(v);
 	}
 	virtual Value execute(Environment & e) {
 		auto value = *(++children.begin());
@@ -111,8 +116,7 @@ public:
 
 class NotNode : public Node {
 public:
-	NotNode(std::shared_ptr<Node> bool_value) :
-		Node("not", "!") {
+	NotNode(std::shared_ptr<Node> bool_value) : Node("not", "!") {
 			children.push_back(bool_value);
 	}
 	virtual Value execute(Environment & e) {
@@ -123,9 +127,9 @@ public:
 class ArrayAccessNode : public Node {
 public:
 	ArrayAccessNode(std::shared_ptr<Node> array, std::shared_ptr<Node> position) :
-		Node("array_access", "[]") {
-			children.push_back(array);
-			children.push_back(position);
+														Node("array_access", "[]") {
+		children.push_back(array);
+		children.push_back(position);
 	}
 	virtual Value execute(Environment & e) {
 		auto itr = children.begin();
@@ -145,9 +149,9 @@ public:
 class FunctionNode : public Node {
 public:
 	FunctionNode(std::string name, std::shared_ptr<Node> parameters, std::shared_ptr<Node> body) :
-		Node("function", name) {
-			children.push_back(parameters);
-			children.push_back(body);
+																			Node("function", name) {
+		children.push_back(parameters);
+		children.push_back(body);
 	}
 	// registers the function in the environment
 	virtual Value execute(Environment & e) {
@@ -215,9 +219,8 @@ public:
 
 class SizeNode : public Node {
 public:
-	SizeNode(std::shared_ptr<Node> value) :
-		Node("size", "#") {
-			children.push_back(value);
+	SizeNode(std::shared_ptr<Node> value) : Node("size", "#") {
+		children.push_back(value);
 	}
 	virtual Value execute(Environment & e) {
 		auto array = children.front()->execute(e).as_array();
@@ -227,8 +230,7 @@ public:
 
 class IncrementNode : public Node {
 public:
-	IncrementNode(std::string variable_name) :
-		Node("increment", variable_name) {}
+	IncrementNode(std::string variable_name) : Node("increment", variable_name) {}
 	virtual Value execute(Environment & e) {
 		auto retrieved_value = e.get(value);
 		Value incremented_value(retrieved_value.as_int() + 1);
@@ -239,9 +241,9 @@ public:
 
 class CommandNode : public Node {
 public:
-	CommandNode(std::string & command, std::shared_ptr<Node> parameters = std::make_shared<ArrayNode>())
-		: Node("command", command) {
-			children.push_back(parameters);
+	CommandNode(std::string & command, std::shared_ptr<Node> parameters = std::make_shared<ArrayNode>()) :
+																					Node("command", command) {
+		children.push_back(parameters);
 	}
 	virtual Value execute(Environment & e) {
 		if (value == "print" || value == "io.write") {
@@ -283,8 +285,7 @@ public:
 			int value;
 			std::cin >> value;
 			if (std::cin.eof()) {
-				value = 0;
-				std::cerr << "from standard input read eof, default value " << value << " used" << std::endl;
+				throw EofException();
 			}
 			return value;
 		} else {
@@ -303,9 +304,9 @@ public:
 class LoopNode : public Node {
 public:
 	LoopNode(std::shared_ptr<Node> condition, std::shared_ptr<Node> body, bool while_loop = true) :
-		Node("loop", while_loop ? "while" : "do while") {
-			children.push_back(condition);
-			children.push_back(body);
+													Node("loop", while_loop ? "while" : "do while") {
+		children.push_back(condition);
+		children.push_back(body);
 	}
 	virtual Value execute(Environment & e) {
 		auto itr = children.begin();
@@ -333,10 +334,9 @@ public:
 
 class IfNode : public Node {
 public:
-	IfNode(std::shared_ptr<Node> condition, std::shared_ptr<Node> body) :
-		Node("if", "") {
-			children.push_back(condition);
-			children.push_back(body);
+	IfNode(std::shared_ptr<Node> condition, std::shared_ptr<Node> body) : Node("if", "") {
+		children.push_back(condition);
+		children.push_back(body);
 	}
 	virtual Value execute(Environment & e) {
 		auto itr = children.begin();
@@ -357,10 +357,10 @@ public:
 class MathNode : public Node {
 public:
 	MathNode(const std::string & op, std::shared_ptr<Node> left, std::shared_ptr<Node> right) :
-		Node("math", op) {
-			children.push_back(left);
-			children.push_back(right);
-		}
+																				Node("math", op) {
+		children.push_back(left);
+		children.push_back(right);
+	}
 	virtual Value execute(Environment & e) {
 		if (children.size() < 2) {
 			throw std::invalid_argument( "Not two children present" );
@@ -394,10 +394,10 @@ public:
 class CompNode : public Node {
 public:
 	CompNode(const std::string & op, std::shared_ptr<Node> left, std::shared_ptr<Node> right) :
-		Node("compare", op) {
-			children.push_back(left);
-			children.push_back(right);
-		}
+																			Node("compare", op) {
+		children.push_back(left);
+		children.push_back(right);
+	}
 	virtual Value execute(Environment & e) {
 		if (children.size() < 2) {
 			throw std::invalid_argument( "Not two children present" );
