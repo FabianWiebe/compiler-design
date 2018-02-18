@@ -3,6 +3,7 @@
 
 #include "Value.hh"
 
+// cannot be defined in header due to linker issues
 std::ostream& ArrayContainer::to_stream(std::ostream& stream) const {
 	stream << "Array:";
 	int i = 0;

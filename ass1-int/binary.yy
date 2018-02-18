@@ -43,10 +43,10 @@
 %%
 stream : optline              { $$ = std::make_shared<Node>("stream","");
                                 $$->children.push_back($1);
-                                root = $$;}
+                                root = $$; }
        | stream NEWL optline  { $$ = $1;
                                 $$->children.push_back($3);
-                                root = $$;}
+                                root = $$; }
        ;
 
 optline : /*empty*/           { $$ = std::make_shared<Node>("optline","empty"); }
@@ -54,9 +54,9 @@ optline : /*empty*/           { $$ = std::make_shared<Node>("optline","empty"); 
                                 $$->children.push_back($1); }
         ;
 
-if : IF unit opt_newl THEN stream END_KW             { $$ = std::make_shared<IfNode>($2, $5); }
-   | IF unit opt_newl THEN stream ELSE stream END_KW { $$ = std::make_shared<IfNode>($2, $5);
-                                                       $$->children.push_back($7); }
+if : IF opt_newl unit opt_newl THEN stream END_KW             { $$ = std::make_shared<IfNode>($3, $6); }
+   | IF opt_newl unit opt_newl THEN stream ELSE stream END_KW { $$ = std::make_shared<IfNode>($3, $6);
+                                                                $$->children.push_back($8); }
    ;
 
 line : command               { $$ = $1; }
@@ -76,7 +76,7 @@ line : command               { $$ = $1; }
      | WORD params           { $$ = std::make_shared<CommandNode>($1->value, $2); } // command without parenthesis
      | simple_assignment     { $$ = $1; }
      | assignment            { $$ = $1; }
-     | RETURN unit           { $$ = std::make_shared<ReturnNode>($2); }
+     | RETURN opt_newl unit  { $$ = std::make_shared<ReturnNode>($3); }
      | RETURN                { $$ = std::make_shared<ReturnNode>(); }
      | FUNCTION WORD OPENING_PARENTHESIS function_params CLOSING_PARENTHESIS stream END_KW
               { $$ = std::make_shared<FunctionNode>($2->value, $4, $6); }
@@ -96,16 +96,16 @@ params : unit                 { $$ = std::make_shared<ArrayNode>();
                                 $$->children.push_back($3); }
        ;
 
-l_params : l_unit              { $$ = std::make_shared<ArrayNode>(); 
-                                 $$->children.push_back($1); }
-         | params COMMA l_unit { $$ = $1;
-                                 $$->children.push_back($3); }
+l_params : l_unit                { $$ = std::make_shared<ArrayNode>(); 
+                                   $$->children.push_back($1); }
+         | l_params COMMA l_unit { $$ = $1;
+                                   $$->children.push_back($3); }
          ;
 
-function_params : WORD              { $$ = std::make_shared<ArrayNode>(); 
-                                      $$->children.push_back($1); }
-                | params COMMA WORD { $$ = $1;
-                                      $$->children.push_back($3); }
+function_params : WORD                       { $$ = std::make_shared<ArrayNode>(); 
+                                               $$->children.push_back($1); }
+                | function_params COMMA WORD { $$ = $1;
+                                               $$->children.push_back($3); }
                 ;
 
 unit : l_unit             { $$ = $1; }

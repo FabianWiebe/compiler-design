@@ -149,11 +149,13 @@ public:
 			children.push_back(parameters);
 			children.push_back(body);
 	}
+	// registers the function in the environment
 	virtual Value execute(Environment & e) {
 		Value function_value(*this);
 		e.set(value, function_value);
 		return 0;
 	}
+	// executes the function call
 	virtual Value call(Environment & e,  Value parameter_values) {
 		e.new_context();
 		// set paramets
@@ -256,15 +258,15 @@ public:
 						std::cout << seperator;
 					}
 					auto value = *itr;
-					// replace /n with std::endl;
+					// replace \n with std::endl;
 					if (value.type == Value::Type::STRING) {
 						std::string str = value.as_string();
 						size_t position = 0;
-						auto result = str.find(std::string("\\n"), position);
-						while (result != std::string::npos) {
-							std::cout << str.substr(position, result - position) << std::endl;
-							position = result + 2;
-							result = str.find(std::string("\\n"), position);
+						auto next_position = str.find("\\n", position);
+						while (next_position != std::string::npos) {
+							std::cout << str.substr(position, next_position - position) << std::endl;
+							position = next_position + 2;
+							next_position = str.find("\\n", position);
 						}
 						std::cout << str.substr(position);
 					} else {
@@ -316,7 +318,7 @@ public:
 					return result;
 				}
 			}
-		} else {
+		} else { // do while
 			do {
 				auto result = body->execute(e);
 				if (e.returning) {
