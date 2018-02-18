@@ -3,14 +3,32 @@ itemCount=#list
 repeat
   hasChanged = false
   itemCount=itemCount - 1
-  for i = 1, itemCount do
-    if list[i] > list[i + 1] then
-      list[i], list[i + 1] = list[i + 1], list[i]
-      hasChanged = true
+  for 
+  	i = 
+  	1, 
+  	itemCount 
+  	do
+    if 
+    	list[i] > 
+    	list[i + 1]
+    	 then
+      list[i], 
+      list[
+      i + 
+      1
+      ] = list[i + 1], 
+      list[i]
+      hasChanged =
+       true
     end
   end
-until hasChanged == false
-for i = 1,#list do
+until 
+	hasChanged == 
+	false
+for i = 
+	1,
+	#list 
+	do
   print (list[i])
 end
 
