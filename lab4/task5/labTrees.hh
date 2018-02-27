@@ -27,10 +27,43 @@ public:
         {
         }
 
-        void dump()
+        bool is_digits(const std::string &str)
         {
-                cout << name << " <- ";
-                cout << lhs << " " << op << " " << rhs << endl;
+            return str.find_first_not_of("0123456789") == std::string::npos;
+        }
+
+        std::string format_value(const std::string& str) {
+          if (is_digits(str)) {
+            return "$" + str;
+          }
+          return "\%[" + str + "]";
+        }
+
+        void dump(std::ostream& stream = std::cout)
+        {
+                stream << "/* Expand: " << name << " := ";
+                stream << lhs << " " << op << " " << rhs << " */" << endl;
+                stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << endl;
+                stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << endl;
+                switch(op) {
+                  case 'c': {
+                    stream << "/* copy is a dummy operation */" << std::endl;
+                    break;
+                  }
+                  case '+': {
+                    stream << "\" addq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
+                    break;
+                  }
+                  case '*': {
+                    stream << "\" mulq \%\%rbx\\n\\t\"" << std::endl;
+                    break;
+                  }
+                  default: {
+                    stream << "/* not implemented case " << op << " */" << std::endl;
+                    break;
+                  }
+                }
+                stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << endl << endl;
         }
 };
 
@@ -50,21 +83,21 @@ public:
         {
         }
 
-        void dump()
+        void dump(std::ostream& stream = std::cout)
         {
-                cout << "BBlock @ " << this;
-                cout << " (" << name << ")" << endl;
+                stream << "/* BBlock @ " << this << " */" << std::endl;
+                stream << "\"" << name << ":\\n\\t\"" << endl;
                 for(auto i : instructions)
-                        i.dump();
-                cout << "True:    " << tExit;
+                        i.dump(stream);
+                stream << "/* True:    " << tExit;
                 if (tExit) {
-                  cout << " (" << tExit->name << ")";
+                  stream << " (" << tExit->name << ")";
                 }
-                cout << std::endl << "False:   " << fExit;
+                stream << " */" << std::endl << "/* False:   " << fExit;
                 if (fExit) {
-                  cout << " (" << fExit->name << ")";
+                  stream << " (" << fExit->name << ")";
                 }
-                std::cout << std::endl;
+                stream << " */" << std::endl;
         }
 };
 int BBlock::nCounter = 0;
@@ -170,7 +203,6 @@ public:
         virtual string convert(BBlock* out)
         {
           return makeNames();
-          
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -410,13 +442,29 @@ Statement *test2 = new Seq({
                           )
 });
 
+Statement *test3 = new Seq({
+                          new Assignment(
+                                  "x",
+                                  new Constant(27)
+                          ),new Assignment(
+                                  "y",
+                                  new Add(
+                                          new Variable("x"),
+                                          new Mult(
+                                                    new Constant(2),
+                                                    new Constant(3)
+                                          )
+                                  )
+                          )
+});
+
 
 /*
  * Iterate over each basic block that can be reached from the entry point
  * exactly once, so that we can dump out the entire graph.
  * This is a concrete example of the graph-walk described in lecture 7.
  */
-void dumpCFG(BBlock *start)
+void dumpCFG(BBlock *start, std::ostream& stream = std::cout)
 {
         set<BBlock *> done, todo;
         todo.insert(start);
@@ -426,7 +474,7 @@ void dumpCFG(BBlock *start)
                 auto first = todo.begin();
                 BBlock *next = *first;
                 todo.erase(first);
-                next->dump();
+                next->dump(stream);
                 done.insert(next);
                 if(next->tExit!=NULL && done.find(next->tExit)==done.end())
                         todo.insert(next->tExit);
@@ -434,4 +482,3 @@ void dumpCFG(BBlock *start)
                         todo.insert(next->fExit);
         }
 }
-
