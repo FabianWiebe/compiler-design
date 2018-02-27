@@ -2,5 +2,9 @@ default: main
 
 main: main.cc labTrees.hh
 	g++ -std=c++14 -g -omain main.cc
+
+asm:
+	g++ -std=c++14 -g -obin asm.cc
+
 clean: 
-	rm -f main
+	rm -f main bin
