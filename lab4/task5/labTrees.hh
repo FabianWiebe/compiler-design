@@ -116,6 +116,7 @@ class Expression
 private:
         static int tmp_counter;
 public:
+        static std::set<std::string> var_names;
         const string name;
 
         Expression(const std::string& name) : name(name)
@@ -125,14 +126,16 @@ public:
         {
           // Lecture 8 / slide 11.
           // Virtual (but not pure) to allow overriding in the leaves.
-          return "_t" + std::to_string(tmp_counter++);
+          auto str = "_t" + std::to_string(tmp_counter++);
+          var_names.insert(str);
+          return str;
         }
         virtual string convert(BBlock*) = 0; // Lecture 8 / slide 12.
         
         virtual void dump(std::ostream& stream=std::cout, int depth = 0) = 0;
 };
 int Expression::tmp_counter = 0;
-
+std::set<std::string> Expression::var_names;
 
 class Add : public Expression
 {
@@ -194,6 +197,7 @@ public:
         Variable(std::string var_name) :
                 Expression("var"), var_name(var_name)
         {
+          var_names.insert(var_name);
         }
 
         virtual std::string makeNames() {

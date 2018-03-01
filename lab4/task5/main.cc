@@ -1,35 +1,39 @@
 #include "labTrees.hh"
 #include <fstream>
+#include <string>
 
 void dump_asm(BBlock *first_block, std::ostream& stream = std::cout) {
-        stream << R"(
-#include <iostream>
+        stream << R"(#include <iostream>
 int main(int argc, char **argv)
-{
-  long x=10,y=0,_t0=17,_t1=17,_t2=17,_t3=17,_t4=17;
+{)";
+	auto& var_names = Expression::var_names;
+	if (!var_names.empty()) {
+		auto itr = var_names.begin();
+		stream << "long " << *itr;
+		for (++itr; itr != var_names.end(); ++itr) {
+			stream << ", " << *itr;
+		}
+		stream << ";" << std::endl;
+	}
+  stream << R"(
   asm(
 )";
 	dumpCFG(first_block, stream);
         stream << R"(
 " nop \n\t"
-: [x] "+g" (x),
-  [y] "+g" (y),
-  [_t0] "+g" (_t0),
-  [_t1] "+g" (_t1),
-  [_t2] "+g" (_t2),
-  [_t3] "+g" (_t3),
-  [_t4] "+g" (_t4)
-:
+: )";
+	auto itr = var_names.begin();
+	stream << "[" << *itr << "] \"+g\" (" << *itr << ")";
+	for (++itr; itr != var_names.end(); ++itr) {
+		stream << "," << std::endl << "  [" << *itr << "] \"+g\" (" << *itr << ")";
+	}
+	stream << std::endl << R"(:
 : "rax", "rbx", "rdx", "cc"
-  );
-  std::cout << "x: " << x << std::endl;
-  std::cout << "y: " << y << std::endl;
-  std::cout << "_t0: " << _t0 << std::endl;
-  std::cout << "_t1: " << _t1 << std::endl;
-  std::cout << "_t2: " << _t2 << std::endl;
-  std::cout << "_t3: " << _t3 << std::endl;
-  std::cout << "_t4: " << _t4 << std::endl;
-}
+  );)";
+	for (const std::string& var_name : var_names) {
+		stream << "std::cout << \"" << var_name << ": \" << " << var_name << " << std::endl;" << std::endl;
+	}
+	stream << R"(}
 )";
 }
 
