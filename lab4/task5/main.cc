@@ -48,10 +48,11 @@ int main(int argc, char **argv)
 	// test->convert(first_block);
 	// dumpCFG(first_block);
 	// std::cout << std::endl << std::endl << "Test Case 2" << std::endl;
-	test3->dump();
+	Statement *current_test = test2;
+	current_test->dump();
 	std::cout << "simple test" << std::endl;
 	BBlock *first_block = new BBlock();
-	test3->convert(first_block);
+	current_test->convert(first_block);
 	dump_asm(first_block);
 	
 	std::ofstream asm_file;

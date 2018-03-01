@@ -427,6 +427,12 @@ Statement *test = new Seq({
 Statement *test2 = new Seq({
                           new Assignment(
                                   "x",
+                                  new Constant(0)
+                          ),new Assignment(
+                                  "y",
+                                  new Constant(0)
+                          ),new Assignment(
+                                  "x",
                                   new Add(
                                           new Variable("x"),
                                           new Constant(1)
