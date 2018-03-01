@@ -4,6 +4,7 @@
 
 void dump_asm(BBlock *first_block, std::ostream& stream = std::cout) {
         stream << R"(#include <iostream>
+
 int main(int argc, char **argv)
 {
 )";
@@ -30,7 +31,8 @@ int main(int argc, char **argv)
     }
 	stream << R"(:
 : "rax", "rbx", "rdx", "cc"
-  );)" << std::endl;
+  );
+)";
 	for (const std::string& var_name : var_names) {
 		stream << "  std::cout << \"" << var_name << ": \" << " << var_name << " << std::endl;" << std::endl;
 	}

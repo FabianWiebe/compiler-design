@@ -58,6 +58,10 @@ public:
                     stream << "\" mulq \%\%rbx\\n\\t\"" << std::endl;
                     break;
                   }
+                  case '=': {
+                    stream << "\" subq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
+                    break;
+                  }
                   default: {
                     stream << "/* not implemented case " << op << " */" << std::endl;
                     break;
@@ -77,6 +81,7 @@ public:
         list<ThreeAd> instructions;
         BBlock *tExit, *fExit;
         string name;
+        std::string cond_jump;
 
         BBlock() :
                 tExit(NULL), fExit(NULL), name("blk" + to_string(nCounter++))
@@ -93,11 +98,18 @@ public:
                 if (tExit) {
                   stream << " (" << tExit->name << ")";
                 }
-                stream << " */" << std::endl << "/* False:   " << fExit;
+                stream << " */" << std::endl;
+                if (tExit) {
+                  stream << "\" " << (cond_jump.empty() ? "jmp" : cond_jump) << " " << tExit->name << "\\n\\t\"" << std::endl;
+                }
+                stream << "/* False:   " << fExit;
                 if (fExit) {
                   stream << " (" << fExit->name << ")";
                 }
                 stream << " */" << std::endl;
+                if (fExit) {
+                  stream << "\" jmp " << fExit->name << "\\n\\t\"" << std::endl;
+                }
         }
 };
 int BBlock::nCounter = 0;
@@ -255,6 +267,7 @@ public:
           auto left = lhs->convert(out);
           auto right = rhs->convert(out);
           out->instructions.emplace_back(gen_name, '=', left, right);
+          out->cond_jump = "jz";
           return gen_name;
           
         }
@@ -340,7 +353,7 @@ public:
         Equality *condition;
         Statement *true_branch, *false_branch;
 
-        If(Equality *condition, Statement *true_branch, Statement *false_branch) :
+        If(Equality *condition, Statement *true_branch, Statement *false_branch = NULL) :
                 Statement("I"), condition(condition), true_branch(true_branch), false_branch(false_branch)
         {
         }
@@ -450,13 +463,19 @@ Statement *test3 = new Seq({
                           new Assignment(
                                   "x",
                                   new Constant(27)
-                          ),new Assignment(
-                                  "y",
-                                  new Add(
+                          ),new If(
+                                  new Equality(
                                           new Variable("x"),
-                                          new Mult(
-                                                    new Constant(2),
-                                                    new Constant(3)
+                                          new Constant(28)
+                                  ),
+                                  new Assignment(
+                                          "y",
+                                          new Add(
+                                                  new Variable("x"),
+                                                  new Mult(
+                                                            new Constant(2),
+                                                            new Constant(3)
+                                                  )
                                           )
                                   )
                           )
@@ -479,6 +498,7 @@ void dumpCFG(BBlock *start, std::ostream& stream = std::cout)
                 BBlock *next = *first;
                 todo.erase(first);
                 next->dump(stream);
+                stream << std::endl;
                 done.insert(next);
                 if(next->tExit!=NULL && done.find(next->tExit)==done.end())
                         todo.insert(next->tExit);
