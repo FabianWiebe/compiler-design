@@ -1,9 +1,9 @@
 #include <iostream>
 int main(int argc, char **argv)
-{long _t0, _t1, x, y;
-
+{
+  long _t0, _t1, x, y;
   asm(
-/* BBlock @ 0x1583380 */
+/* BBlock @ 0x1b5e380 */
 "blk0:\n\t"
 /* Expand: x := 27 c 27 */
 " movq $27, %%rax\n\t"
@@ -31,16 +31,15 @@ int main(int argc, char **argv)
 
 /* True:    0 */
 /* False:   0 */
-
-" nop \n\t"
 : [_t0] "+g" (_t0),
   [_t1] "+g" (_t1),
   [x] "+g" (x),
   [y] "+g" (y)
 :
 : "rax", "rbx", "rdx", "cc"
-  );std::cout << "_t0: " << _t0 << std::endl;
-std::cout << "_t1: " << _t1 << std::endl;
-std::cout << "x: " << x << std::endl;
-std::cout << "y: " << y << std::endl;
+  );
+  std::cout << "_t0: " << _t0 << std::endl;
+  std::cout << "_t1: " << _t1 << std::endl;
+  std::cout << "x: " << x << std::endl;
+  std::cout << "y: " << y << std::endl;
 }

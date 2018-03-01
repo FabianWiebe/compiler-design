@@ -5,33 +5,34 @@
 void dump_asm(BBlock *first_block, std::ostream& stream = std::cout) {
         stream << R"(#include <iostream>
 int main(int argc, char **argv)
-{)";
+{
+)";
 	auto& var_names = Expression::var_names;
 	if (!var_names.empty()) {
 		auto itr = var_names.begin();
-		stream << "long " << *itr;
+		stream << "  long " << *itr;
 		for (++itr; itr != var_names.end(); ++itr) {
 			stream << ", " << *itr;
 		}
 		stream << ";" << std::endl;
 	}
-  stream << R"(
-  asm(
+  stream << R"(  asm(
 )";
 	dumpCFG(first_block, stream);
-        stream << R"(
-" nop \n\t"
-: )";
-	auto itr = var_names.begin();
-	stream << "[" << *itr << "] \"+g\" (" << *itr << ")";
-	for (++itr; itr != var_names.end(); ++itr) {
-		stream << "," << std::endl << "  [" << *itr << "] \"+g\" (" << *itr << ")";
-	}
-	stream << std::endl << R"(:
+    stream << ":";
+    if (!var_names.empty()) {
+		auto itr = var_names.begin();
+		stream << " [" << *itr << "] \"+g\" (" << *itr << ")";
+		for (++itr; itr != var_names.end(); ++itr) {
+			stream << "," << std::endl << "  [" << *itr << "] \"+g\" (" << *itr << ")";
+		}
+		stream << std::endl;
+    }
+	stream << R"(:
 : "rax", "rbx", "rdx", "cc"
-  );)";
+  );)" << std::endl;
 	for (const std::string& var_name : var_names) {
-		stream << "std::cout << \"" << var_name << ": \" << " << var_name << " << std::endl;" << std::endl;
+		stream << "  std::cout << \"" << var_name << ": \" << " << var_name << " << std::endl;" << std::endl;
 	}
 	stream << R"(}
 )";
