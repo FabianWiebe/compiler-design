@@ -33,11 +33,14 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_n
 : "rax", "rbx", "rdx", "cc"
   );
 )";
+}
+
+void output_vars(std::ostream& stream, const std::list<std::string>& var_names) {
   for (const std::string& var_name : var_names) {
     stream << "  std::cout << \"" << var_name << ": \" << " << var_name << " << std::endl;" << std::endl;
   }
-  stream << "}" << std::endl;
 }
+
 
 /************* Three Address Instructions *************/
 class ThreeAd
@@ -65,33 +68,47 @@ public:
 
         void dump(std::ostream& stream = std::cout)
         {
-                stream << "/* Expand: " << name << " := ";
-                stream << lhs << " " << op << " " << rhs << " */" << endl;
-                stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << endl;
-                stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << endl;
+                stream << "  /* Expand: " << name << " := ";
+                stream << "  " << lhs << " " << op << " " << rhs << " */" << endl;
                 switch(op) {
-                  case 'c': {
-                    stream << "/* copy is a dummy operation */" << std::endl;
-                    break;
-                  }
-                  case '+': {
-                    stream << "\" addq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
-                    break;
-                  }
-                  case '*': {
-                    stream << "\" mulq \%\%rbx\\n\\t\"" << std::endl;
-                    break;
-                  }
                   case '=': {
-                    stream << "\" subq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
-                    break;
-                  }
-                  default: {
-                    stream << "/* not implemented case " << op << " */" << std::endl;
-                    break;
-                  }
+                      stream << "  if (" << lhs << " == " << rhs << ") ";
+                      break;
+                    }
+                  case 'c': {
+                      stream << "  " << name << " = " << lhs << ";" << endl;
+                      break;
+                    }
+                    default: {
+                      stream << "  " << name << " = " << lhs << " " << op << " " << rhs << ";" << endl;
+                      break;
+                    }
                 }
-                stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << endl << endl;
+                // stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << endl;
+                // stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << endl;
+                // switch(op) {
+                //   case 'c': {
+                //     stream << "/* copy is a dummy operation */" << std::endl;
+                //     break;
+                //   }
+                //   case '+': {
+                //     stream << "\" addq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
+                //     break;
+                //   }
+                //   case '*': {
+                //     stream << "\" mulq \%\%rbx\\n\\t\"" << std::endl;
+                //     break;
+                //   }
+                //   case '=': {
+                //     stream << "\" subq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
+                //     break;
+                //   }
+                //   default: {
+                //     stream << "/* not implemented case " << op << " */" << std::endl;
+                //     break;
+                //   }
+                // }
+                // stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << endl << endl;
         }
 };
 
@@ -115,16 +132,19 @@ public:
         void dump(std::ostream& stream = std::cout)
         {
                 stream << "/* BBlock @ " << name << " */" << std::endl;
-                stream << "\"" << name << ":\\n\\t\"" << endl;
+                //stream << "\"" << name << ":\\n\\t\"" << endl;
+                stream << name << ":" << std::endl;
                 for(auto i : instructions)
                         i.dump(stream);
                 stream << "/* True:    " << (tExit ? tExit->name : "0") << " */" << std::endl;
                 if (tExit) {
-                  stream << "\" " << (cond_jump.empty() ? "jmp" : cond_jump) << " " << tExit->name << "\\n\\t\"" << std::endl;
+                  //stream << "\" " << (cond_jump.empty() ? "jmp" : cond_jump) << " " << tExit->name << "\\n\\t\"" << std::endl;
+                  stream << "  goto " << tExit->name << ";" << std::endl;
                 }
                 stream << "/* False:   " << (fExit ? fExit->name : "0")  << " */" << std::endl;
                 if (fExit) {
-                  stream << "\" jmp " << fExit->name << "\\n\\t\"" << std::endl;
+                  //stream << "\" jmp " << fExit->name << "\\n\\t\"" << std::endl;
+                  stream << "  else goto " << fExit->name << ";" << std::endl;
                 }
         }
 };
@@ -488,7 +508,7 @@ Statement *test3 = new Seq({
                           ),new If(
                                   new Equality(
                                           new Variable("x"),
-                                          new Constant(28)
+                                          new Constant(27)
                                   ),
                                   new Assignment(
                                           "y",

@@ -17,9 +17,12 @@ int main(int argc, char **argv)
 		}
 		stream << ";" << std::endl;
 	}
-	output_start_of_asm(stream);
+	//output_start_of_asm(stream);
 	dumpCFG(first_block, stream);
-    output_end_of_asm(stream, std::list<std::string>(var_names.begin(), var_names.end()));
+	std::list<std::string> vars(var_names.begin(), var_names.end());
+    //output_end_of_asm(stream, vars);
+    output_vars(stream, vars);
+    stream << "}" << std::endl;
 }
 
 int main(int argc, char **argv)
@@ -30,7 +33,7 @@ int main(int argc, char **argv)
 	// test->convert(first_block);
 	// dumpCFG(first_block);
 	// std::cout << std::endl << std::endl << "Test Case 2" << std::endl;
-	Statement *current_test = test2;
+	Statement *current_test = test3;
 	current_test->dump();
 	std::cout << "simple test" << std::endl;
 	BBlock *first_block = new BBlock();
