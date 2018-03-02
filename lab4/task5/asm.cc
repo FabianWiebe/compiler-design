@@ -5,8 +5,8 @@ int main(int argc, char **argv)
   long _t0, _t1, _t2, x, y;
 /* BBlock @ blk0 */
 blk0:
-  /* Expand: x := 27 c 27 */
   asm(
+  /* Expand: x := 27 c 27 */
 " movq $27, %%rax\n\t"
 " movq $27, %%rbx\n\t"
 /* copy is a dummy operation */
@@ -24,38 +24,28 @@ blk0:
 
 /* BBlock @ blk1 */
 blk1:
-  /* Expand: _t2 := 2 * 3 */
   asm(
+  /* Expand: _t2 := 2 * 3 */
 " movq $2, %%rax\n\t"
 " movq $3, %%rbx\n\t"
 " mulq %%rbx\n\t"
 " movq %%rax, %[_t2]\n\t"
 
-: [_t2] "+g" (_t2)
-:
-: "rax", "rbx", "rdx", "cc"
-  );
   /* Expand: _t1 := x + _t2 */
-  asm(
 " movq %[x], %%rax\n\t"
 " movq %[_t2], %%rbx\n\t"
 " addq %%rbx, %%rax\n\t"
 " movq %%rax, %[_t1]\n\t"
 
-: [_t1] "+g" (_t1),
-  [_t2] "+g" (_t2),
-  [x] "+g" (x)
-:
-: "rax", "rbx", "rdx", "cc"
-  );
   /* Expand: y := _t1 c _t1 */
-  asm(
 " movq %[_t1], %%rax\n\t"
 " movq %[_t1], %%rbx\n\t"
 /* copy is a dummy operation */
 " movq %%rax, %[y]\n\t"
 
 : [_t1] "+g" (_t1),
+  [_t2] "+g" (_t2),
+  [x] "+g" (x),
   [y] "+g" (y)
 :
 : "rax", "rbx", "rdx", "cc"
@@ -66,6 +56,12 @@ blk1:
 
 /* BBlock @ blk2 */
 blk2:
+  asm(
+" nop\n\t"
+:
+:
+: "rax", "rbx", "rdx", "cc"
+  );
 /* True:    0 */
 /* False:   0 */
 

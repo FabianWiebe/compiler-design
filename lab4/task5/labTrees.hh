@@ -42,6 +42,11 @@ void output_vars(std::ostream& stream, const std::list<std::string>& var_names) 
   }
 }
 
+bool is_digits(const std::string &str)
+{
+    return str.find_first_not_of("0123456789") == std::string::npos;
+}
+
 
 /************* Three Address Instructions *************/
 class ThreeAd
@@ -53,11 +58,6 @@ public:
         ThreeAd(string name, char op, string lhs, string rhs) :
                 name(name), op(op), lhs(lhs), rhs(rhs)
         {
-        }
-
-        bool is_digits(const std::string &str)
-        {
-            return str.find_first_not_of("0123456789") == std::string::npos;
         }
 
         std::string format_value(const std::string& str) {
@@ -85,14 +85,6 @@ public:
                   //     break;
                   //   }
                 }
-                std::set<std::string> tmp_vars;
-                tmp_vars.insert(name);
-                if (!is_digits(lhs)) {
-                  tmp_vars.insert(lhs);
-                }
-                if (!is_digits(rhs)) {
-                  tmp_vars.insert(rhs);
-                }                output_start_of_asm(stream);
                 stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << endl;
                 stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << endl;
                 switch(op) {
@@ -118,9 +110,6 @@ public:
                   }
                 }
                 stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << endl << endl;
-                std::list<std::string> vars_as_list(tmp_vars.begin(), tmp_vars.end());
-                output_end_of_asm(stream, vars_as_list);
-                //output_vars(stream, vars_as_list);
         }
 };
 
@@ -146,8 +135,27 @@ public:
                 stream << "/* BBlock @ " << name << " */" << std::endl;
                 //stream << "\"" << name << ":\\n\\t\"" << endl;
                 stream << name << ":" << std::endl;
-                for(auto i : instructions)
+                std::set<std::string> tmp_vars;
+                output_start_of_asm(stream);
+                if (instructions.empty()) {
+                  stream << "\" nop\\n\\t\"" << std::endl;
+                }
+                for(auto i : instructions) {
+                  if (i.op == '=') continue;
                         i.dump(stream);
+                        tmp_vars.insert(i.name);
+                        if (!is_digits(i.lhs)) {
+                          tmp_vars.insert(i.lhs);
+                        }
+                        if (!is_digits(i.rhs)) {
+                          tmp_vars.insert(i.rhs);
+                        }
+                }
+                std::list<std::string> vars_as_list(tmp_vars.begin(), tmp_vars.end());
+                output_end_of_asm(stream, vars_as_list);
+                if(!instructions.empty() && instructions.rbegin()->op == '=') {
+                  instructions.rbegin()->dump(stream);
+                }
                 stream << "/* True:    " << (tExit ? tExit->name : "0") << " */" << std::endl;
                 if (tExit) {
                   //stream << "\" " << (cond_jump.empty() ? "jmp" : cond_jump) << " " << tExit->name << "\\n\\t\"" << std::endl;
