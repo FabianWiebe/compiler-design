@@ -4,7 +4,7 @@ int main(int argc, char **argv)
 {
   long _t0, _t1, _t2, _t3, x, y;
   asm(
-/* BBlock @ 0x215f680 */
+/* BBlock @ blk0 */
 "blk0:\n\t"
 /* Expand: x := 0 c 0 */
 " movq $0, %%rax\n\t"
@@ -48,12 +48,12 @@ int main(int argc, char **argv)
 " subq %%rbx, %%rax\n\t"
 " movq %%rax, %[_t2]\n\t"
 
-/* True:    0x215fb60 (blk1) */
+/* True:    blk1 */
 " jz blk1\n\t"
-/* False:   0x215fef0 (blk5) */
+/* False:   blk5 */
 " jmp blk5\n\t"
 
-/* BBlock @ 0x215fb60 */
+/* BBlock @ blk1 */
 "blk1:\n\t"
 /* Expand: _t3 := y = 0 */
 " movq %[y], %%rax\n\t"
@@ -61,12 +61,12 @@ int main(int argc, char **argv)
 " subq %%rbx, %%rax\n\t"
 " movq %%rax, %[_t3]\n\t"
 
-/* True:    0x215fca0 (blk2) */
+/* True:    blk2 */
 " jz blk2\n\t"
-/* False:   0x215fd90 (blk3) */
+/* False:   blk3 */
 " jmp blk3\n\t"
 
-/* BBlock @ 0x215fca0 */
+/* BBlock @ blk2 */
 "blk2:\n\t"
 /* Expand: x := 1 c 1 */
 " movq $1, %%rax\n\t"
@@ -74,11 +74,11 @@ int main(int argc, char **argv)
 /* copy is a dummy operation */
 " movq %%rax, %[x]\n\t"
 
-/* True:    0x215fe80 (blk4) */
+/* True:    blk4 */
 " jmp blk4\n\t"
 /* False:   0 */
 
-/* BBlock @ 0x215fd90 */
+/* BBlock @ blk3 */
 "blk3:\n\t"
 /* Expand: y := 2 c 2 */
 " movq $2, %%rax\n\t"
@@ -86,17 +86,17 @@ int main(int argc, char **argv)
 /* copy is a dummy operation */
 " movq %%rax, %[y]\n\t"
 
-/* True:    0x215fe80 (blk4) */
+/* True:    blk4 */
 " jmp blk4\n\t"
 /* False:   0 */
 
-/* BBlock @ 0x215fe80 */
+/* BBlock @ blk4 */
 "blk4:\n\t"
-/* True:    0x215ffe0 (blk6) */
+/* True:    blk6 */
 " jmp blk6\n\t"
 /* False:   0 */
 
-/* BBlock @ 0x215fef0 */
+/* BBlock @ blk5 */
 "blk5:\n\t"
 /* Expand: y := 3 c 3 */
 " movq $3, %%rax\n\t"
@@ -104,11 +104,11 @@ int main(int argc, char **argv)
 /* copy is a dummy operation */
 " movq %%rax, %[y]\n\t"
 
-/* True:    0x215ffe0 (blk6) */
+/* True:    blk6 */
 " jmp blk6\n\t"
 /* False:   0 */
 
-/* BBlock @ 0x215ffe0 */
+/* BBlock @ blk6 */
 "blk6:\n\t"
 /* True:    0 */
 /* False:   0 */

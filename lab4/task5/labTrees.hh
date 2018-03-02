@@ -15,6 +15,30 @@
 
 using namespace std;
 
+void output_start_of_asm(std::ostream& stream) {
+  stream << "  asm(" << std::endl;
+}
+
+void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_names) {
+  stream << ":";
+  if (!var_names.empty()) {
+    auto itr = var_names.begin();
+    stream << " [" << *itr << "] \"+g\" (" << *itr << ")";
+    for (++itr; itr != var_names.end(); ++itr) {
+      stream << "," << std::endl << "  [" << *itr << "] \"+g\" (" << *itr << ")";
+    }
+    stream << std::endl;
+  }
+  stream << R"(:
+: "rax", "rbx", "rdx", "cc"
+  );
+)";
+  for (const std::string& var_name : var_names) {
+    stream << "  std::cout << \"" << var_name << ": \" << " << var_name << " << std::endl;" << std::endl;
+  }
+  stream << "}" << std::endl;
+}
+
 /************* Three Address Instructions *************/
 class ThreeAd
 {
@@ -90,23 +114,15 @@ public:
 
         void dump(std::ostream& stream = std::cout)
         {
-                stream << "/* BBlock @ " << this << " */" << std::endl;
+                stream << "/* BBlock @ " << name << " */" << std::endl;
                 stream << "\"" << name << ":\\n\\t\"" << endl;
                 for(auto i : instructions)
                         i.dump(stream);
-                stream << "/* True:    " << tExit;
-                if (tExit) {
-                  stream << " (" << tExit->name << ")";
-                }
-                stream << " */" << std::endl;
+                stream << "/* True:    " << (tExit ? tExit->name : "0") << " */" << std::endl;
                 if (tExit) {
                   stream << "\" " << (cond_jump.empty() ? "jmp" : cond_jump) << " " << tExit->name << "\\n\\t\"" << std::endl;
                 }
-                stream << "/* False:   " << fExit;
-                if (fExit) {
-                  stream << " (" << fExit->name << ")";
-                }
-                stream << " */" << std::endl;
+                stream << "/* False:   " << (fExit ? fExit->name : "0")  << " */" << std::endl;
                 if (fExit) {
                   stream << "\" jmp " << fExit->name << "\\n\\t\"" << std::endl;
                 }

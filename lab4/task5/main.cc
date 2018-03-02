@@ -8,7 +8,7 @@ void dump_asm(BBlock *first_block, std::ostream& stream = std::cout) {
 int main(int argc, char **argv)
 {
 )";
-	auto& var_names = Expression::var_names;
+	const auto& var_names = Expression::var_names;
 	if (!var_names.empty()) {
 		auto itr = var_names.begin();
 		stream << "  long " << *itr;
@@ -17,27 +17,9 @@ int main(int argc, char **argv)
 		}
 		stream << ";" << std::endl;
 	}
-  stream << R"(  asm(
-)";
+	output_start_of_asm(stream);
 	dumpCFG(first_block, stream);
-    stream << ":";
-    if (!var_names.empty()) {
-		auto itr = var_names.begin();
-		stream << " [" << *itr << "] \"+g\" (" << *itr << ")";
-		for (++itr; itr != var_names.end(); ++itr) {
-			stream << "," << std::endl << "  [" << *itr << "] \"+g\" (" << *itr << ")";
-		}
-		stream << std::endl;
-    }
-	stream << R"(:
-: "rax", "rbx", "rdx", "cc"
-  );
-)";
-	for (const std::string& var_name : var_names) {
-		stream << "  std::cout << \"" << var_name << ": \" << " << var_name << " << std::endl;" << std::endl;
-	}
-	stream << R"(}
-)";
+    output_end_of_asm(stream, std::list<std::string>(var_names.begin(), var_names.end()));
 }
 
 int main(int argc, char **argv)
