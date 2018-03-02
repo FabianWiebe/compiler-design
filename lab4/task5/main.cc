@@ -17,10 +17,10 @@ int main(int argc, char **argv)
 		}
 		stream << ";" << std::endl;
 	}
-	//output_start_of_asm(stream);
+	output_start_of_asm(stream);
 	dumpCFG(first_block, stream);
 	std::list<std::string> vars(var_names.begin(), var_names.end());
-    //output_end_of_asm(stream, vars);
+    output_end_of_asm(stream, vars);
     output_vars(stream, vars);
     stream << "}" << std::endl;
 }
