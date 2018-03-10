@@ -12,6 +12,7 @@
 #include <initializer_list>
 #include <string>
 #include <iostream>
+#include "Value.hh"
 
 void output_start_of_asm(std::ostream& stream) {
   stream << "  asm(" << std::endl;
@@ -189,12 +190,12 @@ public:
         }
 };
 
-class Variable : public Expression
+class Var : public Expression
 {
 public:
         std::string var_name;
 
-        Variable(std::string var_name) :
+        Var(std::string var_name) :
                 Expression("var"), var_name(var_name)
         {
           var_names.insert(var_name);
@@ -217,15 +218,15 @@ public:
 class Constant : public Expression
 {
 public:
-        int value;
+        Value value;
 
-        Constant(int value) :
+        Constant(Value value) :
                 Expression("constant"), value(value)
         {
         }
 
         virtual std::string makeNames()  {
-          return std::to_string(value);
+          return value.as_string();
         }
 
         virtual std::string convert(BBlock* out)
@@ -286,11 +287,11 @@ public:
 class Assignment : public Statement
 {
 public:
-        Variable *lhs;
+        Var *lhs;
         Expression *rhs;
 
         Assignment(std::string lhs, Expression *rhs) :
-                Statement("A"), lhs(new Variable(lhs)), rhs(rhs)
+                Statement("A"), lhs(new Var(lhs)), rhs(rhs)
         {
         }
 
@@ -384,30 +385,30 @@ Statement *test = new Seq({
                           new Assignment(
                                   "x",
                                   new Math("+",
-                                          new Variable("x"),
+                                          new Var("x"),
                                           new Constant(1)
                                   )
                           ),new If(
                                   new Comp("==",
-                                          new Variable("x"),
+                                          new Var("x"),
                                           new Constant(10)
                                   ),new Assignment(
                                           "y",
                                           new Math("+",
-                                                  new Variable("x"),
+                                                  new Var("x"),
                                                   new Constant(1)
                                           )
                                   ), new Assignment(
                                           "y",
                                           new Math("*",
-                                                  new Variable("x"),
+                                                  new Var("x"),
                                                   new Constant(2)
                                           )
                                   )
                           ), new Assignment(
                                   "x",
                                   new Math("+",
-                                          new Variable("x"),
+                                          new Var("x"),
                                           new Constant(1)
                                   )
                           )
@@ -423,22 +424,22 @@ Statement *test2 = new Seq({
                           ),new Assignment(
                                   "x",
                                   new Math("+",
-                                          new Variable("x"),
+                                          new Var("x"),
                                           new Constant(1)
                                   )
                           ),new Assignment(
                                   "y",
                                   new Math("+",
-                                          new Variable("y"),
+                                          new Var("y"),
                                           new Constant(1)
                                   )
                           ),new If(
                                   new Comp("==",
-                                          new Variable("x"),
+                                          new Var("x"),
                                           new Constant(0)
                                   ),new If(
                                           new Comp("==",
-                                                  new Variable("y"),
+                                                  new Var("y"),
                                                   new Constant(0)
                                           ),new Assignment(
                                                   "x",
@@ -460,13 +461,13 @@ Statement *test3 = new Seq({
                                   new Constant(27)
                           ),new If(
                                   new Comp("==",
-                                          new Variable("x"),
+                                          new Var("x"),
                                           new Constant(27)
                                   ),
                                   new Assignment(
                                           "y",
                                           new Math("+",
-                                                  new Variable("x"),
+                                                  new Var("x"),
                                                   new Math("*",
                                                             new Constant(2),
                                                             new Constant(3)
