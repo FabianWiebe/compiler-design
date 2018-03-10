@@ -13,8 +13,6 @@
 #include <string>
 #include <iostream>
 
-using namespace std;
-
 void output_start_of_asm(std::ostream& stream) {
   stream << "  asm(" << std::endl;
 }
@@ -52,10 +50,10 @@ bool is_digits(const std::string &str)
 class ThreeAd
 {
 public:
-        string name,lhs,rhs;
+        std::string name,lhs,rhs;
         char op;
 
-        ThreeAd(string name, char op, string lhs, string rhs) :
+        ThreeAd(std::string name, char op, std::string lhs, std::string rhs) :
                 name(name), op(op), lhs(lhs), rhs(rhs)
         {
         }
@@ -70,9 +68,9 @@ public:
         void dump(std::ostream& stream = std::cout)
         {
                 stream << "  /* Expand: " << name << " := ";
-                stream << lhs << " " << op << " " << rhs << " */" << endl;
-                stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << endl;
-                stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << endl;
+                stream << lhs << " " << op << " " << rhs << " */" << std::endl;
+                stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
+                stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
                 switch(op) {
                   case 'c': {
                     stream << "/* copy is a dummy operation */" << std::endl;
@@ -95,7 +93,7 @@ public:
                     break;
                   }
                 }
-                stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << endl << endl;
+                stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
         }
 };
 
@@ -106,20 +104,20 @@ class BBlock
 private:
         static int nCounter;
 public:
-        list<ThreeAd> instructions;
+        std::list<ThreeAd> instructions;
         BBlock *tExit, *fExit;
-        string name;
+        std::string name;
         std::string cond_jump;
 
         BBlock() :
-                tExit(NULL), fExit(NULL), name("blk" + to_string(nCounter++))
+                tExit(NULL), fExit(NULL), name("blk" + std::to_string(nCounter++))
         {
         }
 
         void dump(std::ostream& stream = std::cout)
         {
                 stream << "/* BBlock @ " << name << " */" << std::endl;
-                stream << "\"" << name << ":\\n\\t\"" << endl;
+                stream << "\"" << name << ":\\n\\t\"" << std::endl;
                 //stream << name << ":" << std::endl;
                 if (instructions.empty()) {
                   stream << "\" nop\\n\\t\"" << std::endl;
@@ -156,7 +154,7 @@ private:
         static int tmp_counter;
 public:
         static std::set<std::string> var_names;
-        const string name;
+        const std::string name;
 
         Expression(const std::string& name) : name(name)
         {
@@ -169,7 +167,7 @@ public:
           var_names.insert(str);
           return str;
         }
-        virtual string convert(BBlock*) = 0; // Lecture 8 / slide 12.
+        virtual std::string convert(BBlock*) = 0; // Lecture 8 / slide 12.
         
         virtual void dump(std::ostream& stream=std::cout, int depth = 0) = 0;
 };
@@ -186,7 +184,7 @@ public:
         {
         }
 
-        virtual string convert(BBlock* out)
+        virtual std::string convert(BBlock* out)
         {
           auto gen_name = makeNames();
           auto left = lhs->convert(out);
@@ -212,7 +210,7 @@ public:
         {
         }
 
-        virtual string convert(BBlock* out)
+        virtual std::string convert(BBlock* out)
         {
           auto gen_name = makeNames();
           auto left = lhs->convert(out);
@@ -243,7 +241,7 @@ public:
           return var_name;
         }
 
-        virtual string convert(BBlock* out)
+        virtual std::string convert(BBlock* out)
         {
           return makeNames();
         }
@@ -267,7 +265,7 @@ public:
           return std::to_string(value);
         }
 
-        virtual string convert(BBlock* out)
+        virtual std::string convert(BBlock* out)
         {
           return makeNames();
           
@@ -288,7 +286,7 @@ public:
         {
         }
 
-        virtual string convert(BBlock* out)
+        virtual std::string convert(BBlock* out)
         {
           auto gen_name = makeNames();
           auto left = lhs->convert(out);
@@ -310,7 +308,7 @@ public:
 class Statement
 {
 public:
-        const string name;
+        const std::string name;
 
         Statement(const std::string& name) : name(name)
         {
@@ -327,7 +325,7 @@ public:
         Variable *lhs;
         Expression *rhs;
 
-        Assignment(string lhs, Expression *rhs) :
+        Assignment(std::string lhs, Expression *rhs) :
                 Statement("A"), lhs(new Variable(lhs)), rhs(rhs)
         {
         }
@@ -352,7 +350,7 @@ class Seq : public Statement
 public:
         std::list<Statement*> statements;
 
-        Seq(initializer_list<Statement*> statements) :
+        Seq(std::initializer_list<Statement*> statements) :
                 Statement("S"), statements(statements)
         {
         }
@@ -522,7 +520,7 @@ Statement *test3 = new Seq({
  */
 void dumpCFG(BBlock *start, std::ostream& stream = std::cout)
 {
-        set<BBlock *> done, todo;
+        std::set<BBlock *> done, todo;
         todo.insert(start);
         while(todo.size()>0)
         {
