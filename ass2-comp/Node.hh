@@ -19,12 +19,6 @@
 #include "Value.hh"
 #include "Environment.hh"
 
-struct EofException : public std::exception {
-	const char * what () const throw () {
-		return "EOF during read from standard input";
-    }
-};
-
 class Node {
 	using counter = std::map<std::string, size_t>;
 public:
@@ -284,9 +278,6 @@ public:
 		} else if (value == "io.read") {
 			int value;
 			std::cin >> value;
-			if (std::cin.eof()) {
-				throw EofException();
-			}
 			return value;
 		} else {
 			auto result = e.get(value);
