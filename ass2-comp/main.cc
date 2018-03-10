@@ -11,26 +11,31 @@ void yy::parser::error(std::string const&err)
   std::cerr << "Parsing error: " << err << std::endl;
 }
 
-void dump_asm(BBlock *first_block, std::ostream& stream = std::cout) {
+void dump_asm(Environment e, BBlock *first_block, std::ostream& stream = std::cout) {
         stream << R"(#include <iostream>
 
 int main(int argc, char **argv)
 {
 )";
-	const auto& var_names = Expression::var_names;
-	if (!var_names.empty()) {
-		auto itr = var_names.begin();
-		stream << "  long " << *itr;
-		for (++itr; itr != var_names.end(); ++itr) {
-			stream << ", " << *itr;
+	std::list<Type> types{Type::LONG, Type::DOUBLE, Type::BOOL, Type::STRING};
+	for (Type type : types) {
+		auto var_names = e.get_all_of_type(type);
+		if (!var_names.empty()) {
+			auto itr = var_names.begin();
+			stream << "  " << type_as_string(type) << " " << *itr;
+			for (++itr; itr != var_names.end(); ++itr) {
+				stream << ", " << *itr;
+			}
+			stream << ";" << std::endl;
 		}
-		stream << ";" << std::endl;
 	}
-	output_start_of_asm(stream);
-	dumpCFG(first_block, stream);
-	std::list<std::string> vars(var_names.begin(), var_names.end());
-    output_end_of_asm(stream, vars);
-    output_vars(stream, vars);
+	//output_start_of_asm(stream);
+	dumpASM(first_block, stream);
+    //output_end_of_asm(stream, vars);
+	for (Type type : types) {	
+		auto var_names = e.get_all_of_type(type);
+    	output_vars(stream, var_names);
+    }
     stream << "}" << std::endl;
 }
 
@@ -45,11 +50,6 @@ int main(int argc, char **argv)
 		fclose(yyin);
 	}
 	if (!result) {
-		std::ofstream parse_tree_file;
-		parse_tree_file.open("cfg.dot");
-		root->dump_as_graph(parse_tree_file);
-		parse_tree_file.close();
-		
 		//root->dump();
 		//std::cout << std::endl;
 		Environment env;
@@ -57,13 +57,18 @@ int main(int argc, char **argv)
 		current_test->dump();
 		std::cout << "simple test" << std::endl;
 		BBlock *first_block = new BBlock();
-		current_test->convert(first_block);
-		dump_asm(first_block);
+		current_test->convert(env, first_block);
+		//dump_asm(first_block);
 		
 		std::ofstream asm_file;
 		asm_file.open("target.cc");
-		dump_asm(first_block, asm_file);
+		dump_asm(env, first_block, asm_file);
 		asm_file.close();
+
+		std::ofstream parse_tree_file;
+		parse_tree_file.open("cfg.dot");
+		dumpCFG(first_block, parse_tree_file);
+		parse_tree_file.close();
 		
 		//std::cout << e;
 	}

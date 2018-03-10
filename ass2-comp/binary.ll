@@ -49,7 +49,7 @@ function							{ return yy::parser::make_FUNCTION(yytext); }
 										return yy::parser::make_VALUE(
 												std::make_shared<ValueNode>(value)); }
 [0-9]+								{ std::string text(yytext);
-										int value = std::stoi(text);
+										long value = std::stol(text);
 										return yy::parser::make_VALUE(
 												std::make_shared<ValueNode>(value)); }
 "true"|"false"						{ std::string text(yytext);

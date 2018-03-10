@@ -100,10 +100,10 @@ class WordNode : public Node {
 public:
 	WordNode(std::string v) : Node("var", v) {}
 	virtual Value execute(Environment & e) {
-		return e.get(value);
+		return 1l; //return e.get(value);
 	}
 	virtual Value assign(Environment & e, Value v) {
-		e.set(value, v);
+		e.set(value, Type::LONG);
 		return v;
 	}
 };
@@ -128,13 +128,13 @@ public:
 	virtual Value execute(Environment & e) {
 		auto itr = children.begin();
 		auto array = (*itr)->execute(e).as_array();
-		auto position = (*++itr)->execute(e).as_int() - 1;
+		auto position = (*++itr)->execute(e).as_long() - 1;
 		return array[position];
 	}
 	virtual Value assign(Environment & e, Value value) {
 		auto itr = children.begin();
 		auto& array = (*itr)->execute(e).as_array();
-		auto position = (*++itr)->execute(e).as_int() - 1;
+		auto position = (*++itr)->execute(e).as_long() - 1;
 		array[position] = value;
 		return value;
 	}
@@ -150,8 +150,8 @@ public:
 	// registers the function in the environment
 	virtual Value execute(Environment & e) {
 		Value function_value(*this);
-		e.set(value, function_value);
-		return 0;
+		e.set(value, Type::LONG);
+		return 0l;
 	}
 	// executes the function call
 	virtual Value call(Environment & e,  Value parameter_values) {
@@ -174,7 +174,7 @@ public:
 		}
 	}
 	virtual Value execute(Environment & e) {
-		Value result(0);
+		Value result(0l);
 		if (!children.empty()) {
 			result = children.front()->execute(e);
 		}
@@ -218,7 +218,7 @@ public:
 	}
 	virtual Value execute(Environment & e) {
 		auto array = children.front()->execute(e).as_array();
-		return static_cast<int>(array.size());
+		return static_cast<long>(array.size());
 	}
 };
 
@@ -226,9 +226,9 @@ class IncrementNode : public Node {
 public:
 	IncrementNode(std::string variable_name) : Node("increment", variable_name) {}
 	virtual Value execute(Environment & e) {
-		auto retrieved_value = e.get(value);
-		Value incremented_value(retrieved_value.as_int() + 1);
-		e.set(value, incremented_value);
+		auto retrieved_value = Value(1l); //e.get(value);
+		Value incremented_value(retrieved_value.as_long() + 1);
+		e.set(value, Type::LONG);
 		return incremented_value;
 	}
 };
@@ -255,7 +255,7 @@ public:
 					}
 					auto value = *itr;
 					// replace \n with std::endl;
-					if (value.type == Value::Type::STRING) {
+					if (value.type == Type::STRING) {
 						std::string str = value.as_string();
 						size_t position = 0;
 						auto next_position = str.find("\\n", position);
@@ -276,18 +276,20 @@ public:
 				std::cout << std::endl;
 			}
 		} else if (value == "io.read") {
-			int value;
+			long value;
 			std::cin >> value;
 			return value;
-		} else {
+		} else 
+			{
+			return 1l; /*
 			auto result = e.get(value);
 			if (!result.is_function()) {
 				throw std::invalid_argument( "Name is not a function" );
 			}
 			Node& function_node = result.as_function();
-			return function_node.call(e, children.front()->execute(e));
+			return function_node.call(e, children.front()->execute(e)); */
 		}
-		return 0;
+		return 0l;
 	}
 };
 
@@ -319,7 +321,7 @@ public:
 			} while (condition->execute(e).as_bool());
 				
 		}
-		return 0;
+		return 0l;
 	}
 };
 
@@ -341,7 +343,7 @@ public:
 				return else_part->execute(e);
 			}
 		}
-		return 0;
+		return 0l;
 	}
 };
 
@@ -371,12 +373,12 @@ public:
 		} else if (value == "^") {
 			result = std::pow(left.as_double(), right.as_double());
 		} else if (value == "%") {
-			result = left.as_int() % right.as_int();
+			result = left.as_long() % right.as_long();
 		} else {
 			throw std::invalid_argument( "Unkwon math operation" );
 		}
-		if (left.type == Value::Type::INT && right.type == Value::Type::INT && result == floor(result)) {
-			return static_cast<int>(result);
+		if (left.type == Type::LONG && right.type == Type::LONG && result == floor(result)) {
+			return static_cast<long>(result);
 		}
 		return result;
 	}
@@ -417,7 +419,7 @@ public:
 class ValueNode : public Node {
 public:
 	ValueNode(bool val) : Node("bool", val ? "true" : "false"), value{val} {}
-	ValueNode(int val) : Node("int", std::to_string(val)), value{val} {}
+	ValueNode(long val) : Node("long", std::to_string(val)), value{val} {}
 	ValueNode(double val) : Node("double", std::to_string(val)), value{val} {}
 	ValueNode(std::string val) : Node("string", "\\\"" + val + "\\\""), value{val} {}
 	virtual Value execute(Environment & e) {

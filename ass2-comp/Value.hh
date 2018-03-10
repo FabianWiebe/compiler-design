@@ -62,23 +62,20 @@ struct FunctionContainer : public BaseStore {
 };
 
 
+enum class Type {UNDEFINED, BOOL, LONG, DOUBLE, STRING, ARRAY, FUNCTION};
+const std::string & type_as_string(const Type& type);
+
+
 class Value {
 public:
-	enum class Type {BOOL, INT, DOUBLE, STRING, ARRAY, FUNCTION};
-	using TypeMap = std::map<Type, std::string>;
-	TypeMap m{TypeMap::value_type(Type::BOOL, "BOOL"), TypeMap::value_type(Type::INT, "INT"), TypeMap::value_type(Type::DOUBLE, "DOUBLE"),
-	TypeMap::value_type(Type::STRING, "STRING"), TypeMap::value_type(Type::ARRAY, "ARRAY"), TypeMap::value_type(Type::FUNCTION, "FUNCTION")};
-	const std::string & type_as_string() const {
-		return m.find(type)->second;
-	}
-	int as_int() const {
+	long as_long() const {
 		switch(type) {
 			case Type::BOOL: {
 				auto ptr = std::dynamic_pointer_cast<Store<bool>>(value);
 				return ptr->value ? 1 : 0;
 			}
-			case Type::INT: {
-				auto ptr = std::dynamic_pointer_cast<Store<int>>(value);
+			case Type::LONG: {
+				auto ptr = std::dynamic_pointer_cast<Store<long>>(value);
 				return ptr->value;
 			}
 			case Type::DOUBLE: {
@@ -99,8 +96,8 @@ public:
 				auto ptr = std::dynamic_pointer_cast<Store<bool>>(value);
 				return ptr->value ? 1. : 0.;
 			}
-			case Type::INT: {
-				auto ptr = std::dynamic_pointer_cast<Store<int>>(value);
+			case Type::LONG: {
+				auto ptr = std::dynamic_pointer_cast<Store<long>>(value);
 				return ptr->value;
 			}
 			case Type::DOUBLE: {
@@ -121,8 +118,8 @@ public:
 				auto ptr = std::dynamic_pointer_cast<Store<bool>>(value);
 				return ptr->value ? "true" : "false";
 			}
-			case Type::INT: {
-				auto ptr = std::dynamic_pointer_cast<Store<int>>(value);
+			case Type::LONG: {
+				auto ptr = std::dynamic_pointer_cast<Store<long>>(value);
 				return std::to_string(ptr->value);
 			}
 			case Type::DOUBLE: {
@@ -143,8 +140,8 @@ public:
 				auto ptr = std::dynamic_pointer_cast<Store<bool>>(value);
 				return ptr->value;
 			}
-			case Type::INT: {
-				auto ptr = std::dynamic_pointer_cast<Store<int>>(value);
+			case Type::LONG: {
+				auto ptr = std::dynamic_pointer_cast<Store<long>>(value);
 				return ptr->value;
 			}
 			case Type::DOUBLE: {
@@ -166,7 +163,7 @@ public:
 				return ptr->value;
 			}
 			default:
-				throw std::invalid_argument( "Cannot convert to array from type " + type_as_string());
+				throw std::invalid_argument( "Cannot convert to array from type " + type_as_string(type));
 		}
 	}
 	Node& as_function() const {
@@ -176,11 +173,11 @@ public:
 				return ptr->value;
 			}
 			default:
-				throw std::invalid_argument( "Cannot convert to node from type " + type_as_string());
+				throw std::invalid_argument( "Cannot convert to node from type " + type_as_string(type));
 		}
 	}
 	Value(bool v) : type(Type::BOOL), value(std::make_shared<Store<bool>>(v)) {}
-	Value(int v) : type(Type::INT), value(std::make_shared<Store<int>>(v)) {}
+	Value(long v) : type(Type::LONG), value(std::make_shared<Store<long>>(v)) {}
 	Value(double v) : type(Type::DOUBLE), value(std::make_shared<Store<double>>(v)) {}
 	Value(std::string v) : type(Type::STRING), value(std::make_shared<Store<std::string>>(v)) {}
 	Value(std::vector<Value> v) : type(Type::ARRAY), value(std::make_shared<ArrayContainer>(v)) {}
@@ -253,7 +250,7 @@ public:
 		    } catch(...) {}
 		}
 	    try {
-	    	return Value(std::stoi(s));
+	    	return Value(std::stol(s));
 	    } catch(...) {}
 	   	std::string lower_case_str(s);
 	   	std::transform(lower_case_str.begin(), lower_case_str.end(), lower_case_str.begin(), ::tolower);
