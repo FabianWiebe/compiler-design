@@ -116,7 +116,6 @@ unit : l_unit             { $$ = $1; }
      | unit POW unit      { $$ = std::make_shared<MathNode>($2, $1, $3); }
      | unit MOD unit      { $$ = std::make_shared<MathNode>($2, $1, $3); }
      | SIZE unit          { $$ = std::make_shared<SizeNode>($2); }
-     | simple_assignment  { $$ = $1; }
      ;
 
 l_unit : WORD OPENING_SQUARE_BRACKET unit CLOSING_SQUARE_BRACKET
