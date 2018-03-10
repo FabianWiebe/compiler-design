@@ -40,27 +40,33 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_n
 )";
 }
 
+std::string get_print_parm(Type type) {
+    switch(type) {
+      case Type::LONG: {
+        return "%ld";
+      }
+      case Type::DOUBLE: {
+        return "%f";
+      }
+      case Type::BOOL: {
+        return "%d";
+      }
+    }
+    return "";
+}
+
 void output_vars(std::ostream& stream, std::list<std::string>& var_names, Type type) {
   if (var_names.empty()) return;
   for (const std::string& var_name : var_names) {
     switch(type) {
-      case Type::LONG: {
-        stream << "  printf(\"" << var_name << " = %ld\\n\", " << var_name << ");" << std::endl;
-        break;
-      }
-      case Type::DOUBLE: {
-        stream << "  printf(\"" << var_name << " = %f\\n\", " << var_name << ");" << std::endl;
-        break;
-      }
-      case Type::BOOL: {
-        stream << "  printf(\"" << var_name << " = %d\\n\", " << var_name << ");" << std::endl;
-        break;
-      }
       case Type::STRING: {
         stream << "  printf(\"" << var_name << " = \");" << std::endl;
         stream << "  printf(var_name);" << std::endl;
         stream << "  printf(\\n);" << std::endl;
         break;
+      }
+      default: {
+        stream << "  printf(\"" << var_name << " = " << get_print_parm(type) << "\\n\", " << var_name << ");" << std::endl;
       }
     }
   }
@@ -91,7 +97,7 @@ public:
           return "\%[" + str + "]";
         }
 
-        void dump(std::ostream& stream = std::cout)
+        void dump(std::ostream& stream = std::cout, std::string esc_str = "")
         {
                 stream << "  /* Expand: " << name << " := ";
                 stream << lhs << " " << op << " " << rhs << " */" << std::endl;
@@ -100,14 +106,40 @@ public:
                 } else if (op == "==" || op == "!=") {
                   stream << "  if (" << lhs << " " << op << " " << rhs << ") " << std::endl;
                 } else if (op == "call") {
-                  stream << "  " << lhs << "(";
-                  if (l_type != Type::UNDEFINED) {
-                    stream << rhs;
-                    if (r_type != Type::UNDEFINED) {
-                      stream << ", " << name;
+                  if (lhs == "print" || lhs == "io.write") {
+                    stream << "  printf(";
+                    if (l_type != Type::UNDEFINED) {
+                      stream << esc_str << "\"" << get_print_parm(l_type);
+                      if (l_type == Type::STRING) {
+                        stream << rhs;
+                      }
+                      if (r_type != Type::UNDEFINED) {
+                        if (lhs == "print") stream << "\\t";
+                        stream << get_print_parm(r_type);
+                        if (r_type == Type::STRING) {
+                          stream << name;
+                        }
+                      }
+                      if(lhs == "print") stream << esc_str << "\\n";
+                      stream << esc_str << "\"";
+                      if (l_type != Type::STRING) {
+                        stream << ", " << rhs;
+                      }
+                      if (r_type != Type::UNDEFINED && r_type != Type::STRING) {
+                        stream << ", " << name;
+                      }
                     }
+                    stream << ");" << std::endl;
+                  } else { // function call
+                    stream << "  " << lhs << "(";
+                    if (l_type != Type::UNDEFINED) {
+                      stream << rhs;
+                      if (r_type != Type::UNDEFINED) {
+                        stream << ", " << name;
+                      }
+                    }
+                    stream << ");" << std::endl;
                   }
-                  stream << ");" << std::endl;
                 } else {
                   stream << "  " << name << " = " << lhs << " " << op << " " << rhs << ";" << std::endl;
                 }
@@ -139,22 +171,7 @@ public:
         }
         void dumpCFG(std::ostream& stream = std::cout)
         {
-                if (op == "c") {
-                  stream << "  " << name << " = " << lhs << ";\n";
-                } else if (op == "==" || op == "!=") {
-                  stream << "  if (" << lhs << " " << op << " " << rhs << ") \n";
-                } else if (op == "call") {
-                  stream << "  " << lhs << "(";
-                  if (l_type != Type::UNDEFINED) {
-                    stream << escape_quotes(rhs);
-                    if (r_type != Type::UNDEFINED) {
-                      stream << ", " << escape_quotes(name);
-                    }
-                  }
-                  stream << ");" << std::endl;
-                } else {
-                  stream << "  " << name << " = " << lhs << " " << op << " " << rhs << ";\n";
-                }
+            dump(stream, "\\");
         }
 };
 
@@ -660,11 +677,11 @@ Statement *test3 = new Seq({
                                                   new Constant(1l)
                                           )
                                   )
-                          ),new Function("printf",
-                          {new Constant(std::string("\"x = %ld\\n\"")),
+                          ),new Function("io.write",
+                          {new Constant(std::string("x = ")),
                           new Var("x")}),
-                          new Function("printf",
-                          {new Constant(std::string("\"y = %ld\\n\"")),
+                          new Function("print",
+                          {new Constant(std::string("\\ny =")),
                           new Var("y")})
 });
 
