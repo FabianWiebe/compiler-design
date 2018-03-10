@@ -12,7 +12,7 @@ void yy::parser::error(std::string const&err)
 }
 
 void dump_asm(Environment e, BBlock *first_block, std::ostream& stream = std::cout) {
-        stream << R"(#include <iostream>
+        stream << R"(#include "stdio.h"
 
 int main(int argc, char **argv)
 {
@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     //output_end_of_asm(stream, vars);
 	for (Type type : types) {	
 		auto var_names = e.get_all_of_type(type);
-    	output_vars(stream, var_names);
+    	output_vars(stream, var_names, type);
     }
     stream << "}" << std::endl;
 }

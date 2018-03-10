@@ -40,10 +40,29 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_n
 )";
 }
 
-void output_vars(std::ostream& stream, std::list<std::string>& var_names) {
+void output_vars(std::ostream& stream, std::list<std::string>& var_names, Type type) {
   if (var_names.empty()) return;
   for (const std::string& var_name : var_names) {
-    stream << "  std::cout << \"" << var_name << ": \" << " << var_name << " << std::endl;" << std::endl;
+    switch(type) {
+      case Type::LONG: {
+        stream << "  printf(\"" << var_name << " = %ld\\n\", " << var_name << ");" << std::endl;
+        break;
+      }
+      case Type::DOUBLE: {
+        stream << "  printf(\"" << var_name << " = %f\\n\", " << var_name << ");" << std::endl;
+        break;
+      }
+      case Type::BOOL: {
+        stream << "  printf(\"" << var_name << " = %d\\n\", " << var_name << ");" << std::endl;
+        break;
+      }
+      case Type::STRING: {
+        stream << "  printf(\"" << var_name << " = \");" << std::endl;
+        stream << "  printf(var_name);" << std::endl;
+        stream << "  printf(\\n);" << std::endl;
+        break;
+      }
+    }
   }
 }
 
@@ -80,6 +99,15 @@ public:
                   stream << "  " << name << " = " << lhs << ";" << std::endl;
                 } else if (op == "==" || op == "!=") {
                   stream << "  if (" << lhs << " " << op << " " << rhs << ") " << std::endl;
+                } else if (op == "call") {
+                  stream << "  " << lhs << "(";
+                  if (l_type != Type::UNDEFINED) {
+                    stream << rhs;
+                    if (r_type != Type::UNDEFINED) {
+                      stream << ", " << name;
+                    }
+                  }
+                  stream << ");" << std::endl;
                 } else {
                   stream << "  " << name << " = " << lhs << " " << op << " " << rhs << ";" << std::endl;
                 }
@@ -96,9 +124,18 @@ public:
                 } else if (op == "==" || op == "!=") {
                   stream << "\" subq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
                 } else {
-                  stream << "/* not implemented case " << op << " */" << std::endl;
+                  stream << "/* not implemented case Type::" << op << " */" << std::endl;
                 }
                 stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
+        }
+        std::string escape_quotes(const std::string& str) {
+          std::string result = str;
+          size_t pos = 0;
+          while ((pos = result.find("\"", pos)) != std::string::npos) {
+              result.insert(pos, "\\");
+              pos += 2;
+          }
+          return result;
         }
         void dumpCFG(std::ostream& stream = std::cout)
         {
@@ -106,6 +143,15 @@ public:
                   stream << "  " << name << " = " << lhs << ";\n";
                 } else if (op == "==" || op == "!=") {
                   stream << "  if (" << lhs << " " << op << " " << rhs << ") \n";
+                } else if (op == "call") {
+                  stream << "  " << lhs << "(";
+                  if (l_type != Type::UNDEFINED) {
+                    stream << escape_quotes(rhs);
+                    if (r_type != Type::UNDEFINED) {
+                      stream << ", " << escape_quotes(name);
+                    }
+                  }
+                  stream << ");" << std::endl;
                 } else {
                   stream << "  " << name << " = " << lhs << " " << op << " " << rhs << ";\n";
                 }
@@ -162,7 +208,7 @@ public:
                   stream << name << " -> " << tExit->name << (fExit ? " [label=\"True\"];" : ";") << std::endl;
                 }
                 if (fExit) {
-                  stream << name << "  -> " << fExit->name << " [label=\"False\"];" << std::endl;
+                  stream << name << " -> " << fExit->name << " [label=\"False\"];" << std::endl;
                 }
         }
 };
@@ -475,8 +521,52 @@ public:
         }
 };
 
+class Function : public Statement
+{
+public:
+        std::list<Expression*> parameters;
 
-/* Test cases */
+        Function(const std::string& name, std::initializer_list<Expression*> parameters) :
+                Statement(name), parameters(parameters)
+        {
+        }
+
+        BBlock* convert(Environment& e, BBlock *out)
+        {
+          std::list<std::string> values;
+          std::list<Type> types;
+          for (Expression* par : parameters) {
+            std::string value;
+            Type type;
+            std::tie(value, type) = par->convert(e, out);
+            values.push_back(value);
+            types.push_back(type);
+          }
+          std::string first, second;
+          Type first_type, second_type;
+          auto itr = values.begin();
+          auto t_itr = types.begin();
+          if (itr != values.end()) {
+            first = *itr;
+            first_type = *t_itr;
+            if (++itr != values.end()) {
+              second = *itr;
+              second_type = *++t_itr;
+            }
+          }
+          out->instructions.emplace_back(second, "call", name, first, first_type, second_type);
+          return out;
+        }
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << "Statement(" << name << ")" << std::endl;
+          for (Expression* par : parameters) {
+            par->dump(stream, depth+1);
+          }
+        }
+};
+
+
+/* Test casesType:: */
 Statement *test = new Seq({
                           new Assignment(
                                   "x",
@@ -570,7 +660,12 @@ Statement *test3 = new Seq({
                                                   new Constant(1l)
                                           )
                                   )
-                          )
+                          ),new Function("printf",
+                          {new Constant(std::string("\"x = %ld\\n\"")),
+                          new Var("x")}),
+                          new Function("printf",
+                          {new Constant(std::string("\"y = %ld\\n\"")),
+                          new Var("y")})
 });
 
 
