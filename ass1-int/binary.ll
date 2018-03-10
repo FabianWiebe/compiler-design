@@ -23,7 +23,6 @@ then								{ return yy::parser::make_THEN(yytext); }
 else								{ return yy::parser::make_ELSE(yytext); }
 return								{ return yy::parser::make_RETURN(yytext); }
 function							{ return yy::parser::make_FUNCTION(yytext); }
-[\n\r]+           					{ return yy::parser::make_NEWL(yytext); }
 "="           						{ return yy::parser::make_EQUALS(yytext); }
 ","           						{ return yy::parser::make_COMMA(yytext); }
 "=="|"!="|">"|"<"|">="|"<="         { return yy::parser::make_COMP(yytext); }
@@ -33,7 +32,7 @@ function							{ return yy::parser::make_FUNCTION(yytext); }
 "]"           						{ return yy::parser::make_CLOSING_SQUARE_BRACKET(yytext); }
 "{"           						{ return yy::parser::make_OPENING_CURLY_BRACKET(yytext); }
 "}"           						{ return yy::parser::make_CLOSING_CURLY_BRACKET(yytext); }
-[ \t]+								{ /* remove white spaces */ }
+[ \t\n\r]+							{ /* remove white spaces and new lines */ }
 "+"									{ return yy::parser::make_PLUS(yytext); }
 "-"									{ return yy::parser::make_MINUS(yytext); }
 "*"									{ return yy::parser::make_MUL(yytext); }
