@@ -26,7 +26,7 @@ std::string get_print_parm(Type type) {
         return "%ld";
       }
       case Type::DOUBLE: {
-        return "%f";
+        return "%g"; //f
       }
       case Type::BOOL: {
         return "%d";
@@ -50,7 +50,9 @@ void define_vars(std::ostream& stream, Environment& e) {
     }
   }
   for (auto& pair : e.get_const_values()) {
-    std::cout << "  " << type_as_string(pair.second.type) << " " << pair.first << " = " << pair.second << ";" << std::endl;
+    Type type = pair.second.type;
+    if (type == Type::ARRAY) type = Type::DOUBLE;
+    stream << "  " << type_as_string(type) << " " << pair.first << "[] = " << pair.second << ";" << std::endl;
   }
 }
 
@@ -228,7 +230,7 @@ int main(int argc, char **argv)
         }
 
         //output_end_of_asm(stream, vars);
-        output_vars(stream, e);
+        //output_vars(stream, e);
         stream << "}" << std::endl;
 }
 

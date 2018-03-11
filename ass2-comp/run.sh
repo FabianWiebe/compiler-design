@@ -1,7 +1,7 @@
 make
 clear
 rm -f ./target.cc
-./comp test_case_4.lua
+./comp test_case_5.lua
 make target
 ./target
 dot cfg.dot -Ocfg.svg -Tsvg

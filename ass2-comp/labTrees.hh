@@ -102,9 +102,13 @@ public:
                   stream << "  " << name << " = pow(" << lhs << ", " << rhs << ");" << std::endl;
                 } else if (op == "++") {
                   stream << "  " << op << lhs << ";" << std::endl;
-                } else if (op == ">=" || op == "<=" || op == "<" || op == ">" || op == "==" || op == "!=") {
-                  stream << "  if(" << lhs << " " << op << " " << rhs << ")";
-                } else {
+                } else if (op == "c[]") {
+                  stream << "  " << name << " = " << lhs << "[" << rhs << " - 1];" << std::endl;
+                } else if (op == "[]c") {
+                  stream << "  " << name << "[" << rhs << " - 1] = " << lhs << ";" << std::endl;
+                } else if (op == "!") {
+                  stream << "  " << name << " = !" << lhs << ";" << std::endl;
+                } else {  
                   stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 }
 
@@ -164,15 +168,21 @@ public:
                 if (instructions.empty()) {
                   //stream << "\" nop\\n\\t\"" << std::endl;
                 }
-                for(auto i : instructions) {
+                for (auto i : instructions) {
                         i.dump(stream);
                 }
-                stream << "/* True:    " << (tExit ? tExit->name : "0") << " */" << std::endl;
+                if (instructions.empty() && !tExit) {
+                  stream << "  exit(0);" << std::endl;
+                }
+                if (fExit) {
+                  stream << "  if(" << instructions.back().name << ")" << std::endl;
+                }
+                stream << "  /* True:    " << (tExit ? tExit->name : "0") << " */" << std::endl;
                 if (tExit) {
                   //stream << "\" " << (cond_jump.empty() ? "jmp" : cond_jump) << " " << tExit->name << "\\n\\t\"" << std::endl;
                   stream << "  goto " << tExit->name << ";" << std::endl;
                 }
-                stream << "/* False:   " << (fExit ? fExit->name : "0")  << " */" << std::endl;
+                stream << "  /* False:   " << (fExit ? fExit->name : "0")  << " */" << std::endl;
                 if (fExit) {
                   //stream << "\" jmp " << fExit->name << "\\n\\t\"" << std::endl;
                   stream << "  else goto " << fExit->name << ";" << std::endl;
@@ -181,9 +191,10 @@ public:
         void dumpCFG(std::ostream& stream = std::cout)
         {
                 stream << name << " [shape=box, label=\"";
-                for(auto i : instructions) {
+                for (auto i : instructions) {
                         i.dumpCFG(stream);
                 }
+
                 stream << "\"];" << std::endl;
                 if (tExit) {
                   stream << name << " -> " << tExit->name << (fExit ? " [label=\"True\"];" : ";") << std::endl;
@@ -333,13 +344,15 @@ public:
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
           std::string name = makeNames(e, Type::DOUBLE);
-          // store result in programme initial list
-          //e.get(name);
+          std::string pos_name = position->convert(e, out).first;
+          out->instructions.emplace_back(name, "c[]", array_name, pos_name, Type::DOUBLE, Type::LONG);
           return {name, Type::DOUBLE};
         }
 
         virtual void assign(Environment & e, BBlock* out, Expression* value) {
-          // implement
+          std::string value_name = value->convert(e, out).first;
+          std::string pos_name = position->convert(e, out).first;
+          out->instructions.emplace_back(array_name, "[]c", value_name, pos_name, Type::DOUBLE, Type::LONG);
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -362,7 +375,7 @@ public:
         {
           std::string name = makeNames(e, Type::BOOL);
           std::string bool_name = bool_value->convert(e, out).first;
-          // out...
+          out->instructions.emplace_back(name, "!", bool_name, bool_name, Type::BOOL, Type::BOOL);
           return {name, Type::BOOL};
         }
 
