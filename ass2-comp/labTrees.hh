@@ -130,6 +130,8 @@ public:
                       }
                     }
                     stream << ");" << std::endl;
+                  } else if (op == "io.read") {
+                    stream << "  scanf(" << esc_str << "\"%ld" << esc_str << "\", " << name << ");" << std::endl;
                   } else { // function call
                     stream << "  " << lhs << "(";
                     if (l_type != Type::UNDEFINED) {
@@ -323,6 +325,64 @@ public:
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
           indent(stream, depth) << var_name << std::endl;
+        }
+};
+
+class Size : public Expression
+{
+public:
+        Expression* array;
+
+        Size(Expression* array) :
+                Expression("#"), array(array)
+        {
+        }
+
+        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
+        {
+          std::string name = makeNames(e, Type::LONG);
+          // store result in programme initial list
+          std::string array_name = array->convert(e, out).first;
+          long size = 0l; //e.get(name);
+          return {name, Type::LONG};
+        }
+
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << name << std::endl;
+          array->dump(stream, depth + 1);
+        }
+};
+
+class Array : public Expression
+{
+public:
+        std::list<Expression*> expressions;
+        Type type;
+
+        Array(std::initializer_list<Expression*> expressions) :
+                Expression("array"), expressions(expressions)
+        {
+        }
+
+        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
+        {
+          for (Expression* expression : expressions) {
+            std::string name;
+            Type type;
+            std::tie(name, type) = expression->convert(e, out);
+          }
+          return {makeNames(e, Type::ARRAY), Type::ARRAY};
+        }
+
+        virtual void assign_type(Environment & e, Type t) {
+          //e.set(var_name, t);
+        }
+
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << "array" << std::endl;
+          for (Expression* expression : expressions) {
+            expression->dump(stream, depth+1);
+          }
         }
 };
 

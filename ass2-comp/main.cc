@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     //output_end_of_asm(stream, vars);
 	for (Type type : types) {	
 		auto var_names = e.get_all_of_type(type);
-    	output_vars(stream, var_names, type);
+    	//output_vars(stream, var_names, type);
     }
     stream << "}" << std::endl;
 }
