@@ -1,9 +1,9 @@
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include "binary.tab.hh"
-#include "Node.hh"
 #include "labTrees.hh"
-extern std::shared_ptr<Node> root;
+extern Statement* root;
 extern FILE *yyin;
 
 void yy::parser::error(std::string const&err)
@@ -13,6 +13,7 @@ void yy::parser::error(std::string const&err)
 
 void dump_asm(Environment e, BBlock *first_block, std::ostream& stream = std::cout) {
         stream << R"(#include "stdio.h"
+#include "math.h"
 
 int main(int argc, char **argv)
 {
@@ -34,7 +35,7 @@ int main(int argc, char **argv)
     //output_end_of_asm(stream, vars);
 	for (Type type : types) {	
 		auto var_names = e.get_all_of_type(type);
-    	//output_vars(stream, var_names, type);
+    	output_vars(stream, var_names, type);
     }
     stream << "}" << std::endl;
 }
@@ -53,7 +54,7 @@ int main(int argc, char **argv)
 		//root->dump();
 		//std::cout << std::endl;
 		Environment env;
-		Statement *current_test = test3;
+		Statement *current_test = root;
 		current_test->dump();
 		std::cout << "simple test" << std::endl;
 		BBlock *first_block = new BBlock();
@@ -69,9 +70,6 @@ int main(int argc, char **argv)
 		parse_tree_file.open("cfg.dot");
 		dumpCFG(first_block, parse_tree_file);
 		parse_tree_file.close();
-
-		Function* ptr = new Function("test", {});
-		FunctionE* test = new FunctionE(*ptr);
 		
 		//std::cout << e;
 	}

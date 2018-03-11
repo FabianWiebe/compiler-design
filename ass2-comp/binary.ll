@@ -2,7 +2,7 @@
 	#include <string>
 	#include <memory>
 	#include "binary.tab.hh"
-	#include "Node.hh"
+	#include "labTrees.hh"
 	#define YY_DECL yy::parser::symbol_type yylex()
 }
 %option noyywrap nounput batch noinput
@@ -41,23 +41,22 @@ function							{ return yy::parser::make_FUNCTION(yytext); }
 "%"									{ return yy::parser::make_MOD(yytext); }
 "#"									{ return yy::parser::make_SIZE(yytext); }
 '([^'\\]|\\.)*'|\"([^"\\]|\\.)*\"	{ std::string text(yytext);
-										std::string value = text.substr(1, text.length()-2);
-										return yy::parser::make_VALUE(
-												std::make_shared<ValueNode>(value)); }
+										const std::string value = text.substr(1, text.length()-2);
+										const Constant* const_ptr = new Constant(value);
+										return yy::parser::make_VALUE(const_ptr); }
 [0-9]*\.[0-9]+						{ std::string text(yytext);
-										double value = std::stod(text);
-										return yy::parser::make_VALUE(
-												std::make_shared<ValueNode>(value)); }
+										const double value = std::stod(text);
+										const Constant* const_ptr = new Constant(value);
+										return yy::parser::make_VALUE(const_ptr); }
 [0-9]+								{ std::string text(yytext);
-										long value = std::stol(text);
-										return yy::parser::make_VALUE(
-												std::make_shared<ValueNode>(value)); }
+										const long value = std::stol(text);
+										const Constant* const_ptr = new Constant(value);
+										return yy::parser::make_VALUE(const_ptr); }
 "true"|"false"						{ std::string text(yytext);
-										bool value = text == "true";
-										return yy::parser::make_VALUE(
-												std::make_shared<ValueNode>(value)); }
-{NOT_SPECIAL}+						{ return yy::parser::make_WORD(
-													std::make_shared<WordNode>(yytext)); }
+										const bool value = text == "true";
+										const Constant* const_ptr = new Constant(value);
+										return yy::parser::make_VALUE(const_ptr); }
+{NOT_SPECIAL}+						{ return yy::parser::make_WORD(yytext); }
 <<EOF>>    							{ return yy::parser::make_END(); }
 
 %%

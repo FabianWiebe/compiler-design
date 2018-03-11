@@ -20,62 +20,15 @@
 #include "Value.hh"
 #include "Environment.hh"
 
-void output_start_of_asm(std::ostream& stream) {
-  stream << "  asm(" << std::endl;
-}
+void output_start_of_asm(std::ostream& stream);
 
-void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_names) {
-  stream << ":";
-  if (!var_names.empty()) {
-    auto itr = var_names.begin();
-    stream << " [" << *itr << "] \"+g\" (" << *itr << ")";
-    for (++itr; itr != var_names.end(); ++itr) {
-      stream << "," << std::endl << "  [" << *itr << "] \"+g\" (" << *itr << ")";
-    }
-  }
-  stream << R"(
-:
-: "rax", "rbx", "rdx", "cc"
-  );
-)";
-}
+void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_names);
 
-std::string get_print_parm(Type type) {
-    switch(type) {
-      case Type::LONG: {
-        return "%ld";
-      }
-      case Type::DOUBLE: {
-        return "%f";
-      }
-      case Type::BOOL: {
-        return "%d";
-      }
-    }
-    return "";
-}
+std::string get_print_parm(Type type);
 
-void output_vars(std::ostream& stream, std::list<std::string>& var_names, Type type) {
-  if (var_names.empty()) return;
-  for (const std::string& var_name : var_names) {
-    switch(type) {
-      case Type::STRING: {
-        stream << "  printf(\"" << var_name << " = \");" << std::endl;
-        stream << "  printf(var_name);" << std::endl;
-        stream << "  printf(\\n);" << std::endl;
-        break;
-      }
-      default: {
-        stream << "  printf(\"" << var_name << " = " << get_print_parm(type) << "\\n\", " << var_name << ");" << std::endl;
-      }
-    }
-  }
-}
+void output_vars(std::ostream& stream, std::list<std::string>& var_names, Type type);
 
-bool is_digits(const std::string &str)
-{
-    return str.find_first_not_of("0123456789") == std::string::npos;
-}
+bool is_digits(const std::string &str);
 
 
 /************* Three Address Instructions *************/
@@ -142,8 +95,10 @@ public:
                     }
                     stream << ");" << std::endl;
                   }
+                } else if (op == "^") {
+                  stream << "  " << name << " = pow(" << lhs << ", " << rhs << ");" << std::endl;
                 } else {
-                  stream << "  " << name << " = " << lhs << " " << op << " " << rhs << ";" << std::endl;
+                  stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 }
 
                 return;
@@ -231,16 +186,10 @@ public:
                 }
         }
 };
-int BBlock::nCounter = 0;
 
 /******************** Expressions ********************/
 
-std::ostream& indent(std::ostream& stream, int depth) {
-  for (int i = 0; i < depth; ++i) {
-    stream << " ";
-  }
-  return stream;
-}
+std::ostream& indent(std::ostream& stream, int depth);
 
 class Expression
 {
@@ -252,7 +201,7 @@ public:
         Expression(const std::string& name = "uninitialized") : name(name)
         {
         }
-        virtual std::string makeNames(Environment& e, Type type) 
+        static std::string makeNames(Environment& e, Type type) 
         {
           // Lecture 8 / slide 11.
           // Virtual (but not pure) to allow overriding in the leaves.
@@ -267,8 +216,10 @@ public:
         virtual void assign_type(Environment & e, Type type) {
           throw std::invalid_argument( "Value is no left value" );
         }
+        virtual void assign(Environment & e, BBlock* out, Expression* value) {
+          throw std::invalid_argument( "Node is no left node" );
+        }
 };
-int Expression::tmp_counter = 0;
 
 class Math : public Expression
 {
@@ -306,9 +257,7 @@ public:
         Type type;
 
         Var(std::string var_name) :
-                Expression("var"), var_name(var_name)
-        {
-        }
+                Expression("var"), var_name(var_name) {}
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
@@ -321,6 +270,13 @@ public:
         virtual void assign_type(Environment & e, Type t) {
           type = t;
           e.set(var_name, t);
+        }
+
+        virtual void assign(Environment & e, BBlock* out, Expression* value) {
+          std::string name;
+          std::tie(name, type) = value->convert(e, out);
+          e.set(var_name, type);
+          out->instructions.emplace_back(var_name, "c", name, name, type, type);
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -356,10 +312,11 @@ public:
 class ArrayAccess : public Expression
 {
 public:
-        Expression* array;
+        const std::string array_name;
+        Expression* position;
 
-        ArrayAccess(Expression* array) :
-                Expression("[]"), array(array)
+        ArrayAccess(const std::string& array_name, Expression* position) :
+                Expression("[]"), array_name(array_name), position(position)
         {
         }
 
@@ -367,28 +324,27 @@ public:
         {
           std::string name = makeNames(e, Type::DOUBLE);
           // store result in programme initial list
-          std::string array_name = array->convert(e, out).first;
           //e.get(name);
           return {name, Type::DOUBLE};
         }
 
-        virtual void assign_type(Environment & e, Type t) {
-          //e.set(var_name, t);
+        virtual void assign(Environment & e, BBlock* out, Expression* value) {
+          // implement
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
-          indent(stream, depth) << name << std::endl;
-          array->dump(stream, depth + 1);
+          indent(stream, depth) << array_name << name << std::endl;
+          position->dump(stream, depth + 1);
         }
 };
 
 class Increment : public Expression
 {
 public:
-        Expression* value;
+        const std::string var_name;
 
-        Increment(Expression* value) :
-                Expression("++"), value(value)
+        Increment(const std::string& var_name) :
+                Expression("++"), var_name(var_name)
         {
         }
 
@@ -401,8 +357,7 @@ public:
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
-          indent(stream, depth) << name << std::endl;
-          value->dump(stream, depth + 1);
+          indent(stream, depth) << name << var_name << std::endl;
         }
 };
 
@@ -436,8 +391,8 @@ public:
         std::list<Expression*> expressions;
         Type type;
 
-        Array(std::initializer_list<Expression*> expressions) :
-                Expression("array"), expressions(expressions)
+        Array(std::initializer_list<Expression*> expressions, const std::string& name = "array") :
+                Expression(name), expressions(expressions)
         {
         }
 
@@ -453,6 +408,10 @@ public:
 
         virtual void assign_type(Environment & e, Type t) {
           //e.set(var_name, t);
+        }
+
+        virtual void assign(Environment & e, BBlock* out, Expression* value) {
+          // implement
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -511,16 +470,16 @@ public:
         }
 };
 
-class Function
+class Command
 {
 public:
         std::list<Expression*> parameters;
         std::string name;
 
-        Function(const std::string& name, std::initializer_list<Expression*> parameters) :
-                name(name), parameters(parameters)
-        {
-        }
+        Command(const std::string& name, std::initializer_list<Expression*> parameters) :
+                name(name), parameters(parameters) {}
+        Command(const std::string& name, std::list<Expression*> parameters) :
+                name(name), parameters(parameters) {}
 
         std::pair<std::string, Type> convert(Environment& e, BBlock *out)
         {
@@ -533,8 +492,8 @@ public:
             values.push_back(value);
             types.push_back(type);
           }
-          std::string first, second;
-          Type first_type, second_type;
+          std::string first = "", second = "";
+          Type first_type = Type::UNDEFINED, second_type = Type::UNDEFINED;
           auto itr = values.begin();
           auto t_itr = types.begin();
           if (itr != values.end()) {
@@ -545,6 +504,7 @@ public:
               second_type = *++t_itr;
             }
           }
+          //std::cout << first << type_as_string(first_type) << second << type_as_string(second_type) << std::endl;
           out->instructions.emplace_back(second, "call", name, first, first_type, second_type);
           return {"", Type::UNDEFINED};
         }
@@ -556,16 +516,16 @@ public:
         }
 };
 
-class FunctionE : public Expression, public Function
+class CommandE : public Expression, public Command
 {
 public:
-  using Function::Function;
-  FunctionE(const Function& function) : Function(function) {}
+  using Command::Command;
+  CommandE(const Command& command) : Command(command) {}
   virtual std::pair<std::string, Type> convert(Environment& e, BBlock *out) {
-    return Function::convert(e, out);
+    return Command::convert(e, out);
   }
   void dump(std::ostream& stream=std::cout, int depth = 0) {
-    Function::dump(stream, depth);
+    Command::dump(stream, depth);
   }
 };
 
@@ -584,17 +544,17 @@ public:
         virtual void dump(std::ostream& stream=std::cout, int depth = 0) = 0;
 };
 
-class FunctionS : public Statement, public Function
+class CommandS : public Statement, public Command
 {
 public:
-  using Function::Function;
-  FunctionS(const Function& function) : Function(function) {}
+  using Command::Command;
+  CommandS(const Command& command) : Command(command) {}
   BBlock* convert(Environment& e, BBlock *out) {
-    Function::convert(e, out);
+    Command::convert(e, out);
     return out;
   }
   void dump(std::ostream& stream=std::cout, int depth = 0) {
-    Function::dump(stream, depth);
+    Command::dump(stream, depth);
   }
 };
 
@@ -603,22 +563,25 @@ public:
 class Assignment : public Statement
 {
 public:
-        Var *lhs;
-        Expression *rhs;
+        Array *lhs;
+        Array *rhs;
 
-        Assignment(std::string lhs, Expression *rhs) :
-                Statement("A"), lhs(new Var(lhs)), rhs(rhs)
-        {
-        }
+        Assignment(Array* lhs, Array *rhs) :
+                Statement("complex Assignment"), lhs(lhs), rhs(rhs) {}
+        Assignment(Expression* lhs, Expression *rhs) :
+                Statement("simple Assignment"), lhs(new Array({lhs})), rhs(new Array({rhs})) {}
 
         BBlock* convert(Environment& e, BBlock *out)
         {
-          std::string left, right;
+          if (lhs->expressions.size() == 1) {
+            lhs->expressions.front()->assign(e, out, rhs->expressions.front());
+          }
+          /*std::string left, right;
           Type left_type, right_type;
           std::tie(right, right_type) = rhs->convert(e, out);
           lhs->assign_type(e, right_type);
           std::tie(left, left_type) = lhs->convert(e, out);
-          out->instructions.emplace_back(left, "c", right, right, left_type, right_type);
+          out->instructions.emplace_back(left, "c", right, right, left_type, right_type); */
           return out;
         }
 
@@ -634,8 +597,8 @@ class Seq : public Statement
 public:
         std::list<Statement*> statements;
 
-        Seq(std::initializer_list<Statement*> statements) :
-                Statement("S"), statements(statements)
+        Seq(std::initializer_list<Statement*> statements, const std::string& name = "S") :
+                Statement(name), statements(statements)
         {
         }
 
@@ -698,6 +661,50 @@ public:
         }
 };
 
+class Function : public Statement
+{
+public:
+        Array *parameters;
+        Statement *body;
+
+        Function(const std::string& name, Array* parameters, Statement *body) :
+                Statement(name), parameters(parameters), body(body)
+        {
+        }
+
+        BBlock* convert(Environment& e, BBlock *out)
+        {
+          // not implemented
+          return out;
+        }
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << "Function(" << name << ")" << std::endl;
+          parameters->dump(stream, depth+1);
+          body->dump(stream, depth+1);
+        }
+};
+
+class Return : public Statement
+{
+public:
+        Expression *expression;
+
+        Return(Expression* expression) :
+                Statement("return"), expression(expression)
+        {
+        }
+
+        BBlock* convert(Environment& e, BBlock *out)
+        {
+          // not implemented
+          return out;
+        }
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << "Statement(" << name << ")" << std::endl;
+          expression->dump(stream, depth+1);
+        }
+};
+
 class Loop : public Statement
 {
 public:
@@ -750,106 +757,7 @@ public:
 
 
 /* Test casesType:: */
-Statement *test = new Seq({
-                          new Assignment(
-                                  "x",
-                                  new Math("+",
-                                          new Var("x"),
-                                          new Constant(1l)
-                                  )
-                          ),new If(
-                                  new Comp("==",
-                                          new Var("x"),
-                                          new Constant(10l)
-                                  ),new Assignment(
-                                          "y",
-                                          new Math("+",
-                                                  new Var("x"),
-                                                  new Constant(1l)
-                                          )
-                                  ), new Assignment(
-                                          "y",
-                                          new Math("*",
-                                                  new Var("x"),
-                                                  new Constant(2l)
-                                          )
-                                  )
-                          ), new Assignment(
-                                  "x",
-                                  new Math("+",
-                                          new Var("x"),
-                                          new Constant(1l)
-                                  )
-                          )
-});
-
-Statement *test2 = new Seq({
-                          new Assignment(
-                                  "x",
-                                  new Constant(0l)
-                          ),new Assignment(
-                                  "y",
-                                  new Constant(0l)
-                          ),new Assignment(
-                                  "x",
-                                  new Math("+",
-                                          new Var("x"),
-                                          new Constant(1l)
-                                  )
-                          ),new Assignment(
-                                  "y",
-                                  new Math("+",
-                                          new Var("y"),
-                                          new Constant(1l)
-                                  )
-                          ),new If(
-                                  new Comp("==",
-                                          new Var("x"),
-                                          new Constant(0l)
-                                  ),new If(
-                                          new Comp("==",
-                                                  new Var("y"),
-                                                  new Constant(0l)
-                                          ),new Assignment(
-                                                  "x",
-                                                  new Constant(1l)
-                                          ), new Assignment(
-                                                  "y",
-                                                  new Constant(2l)
-                                          )
-                                  ), new Assignment(
-                                          "y",
-                                          new Constant(3l)
-                                  )
-                          )
-});
-
-Statement *test3 = new Seq({
-                          new Assignment(
-                                  "x",
-                                  new Constant(1l)
-                          ),new Assignment(
-                                  "y",
-                                  new Constant(10l)
-                          ),new Loop(
-                                  new Comp("!=",
-                                          new Var("x"),
-                                          new Var("y")
-                                  ),
-                                  new Assignment(
-                                          "x",
-                                          new Math("+",
-                                                  new Var("x"),
-                                                  new Constant(1l)
-                                          )
-                                  )
-                          ),new FunctionS("io.write",
-                          {new Constant(std::string("x = ")),
-                          new Var("x")}),
-                          new FunctionS("print",
-                          {new Constant(std::string("\\ny =")),
-                          new Var("y")})
-});
+extern Statement *test, *test2, *test3;
 
 
 /*
@@ -857,50 +765,13 @@ Statement *test3 = new Seq({
  * exactly once, so that we can dump out the entire graph.
  * This is a concrete example of the graph-walk described in lecture 7.
  */
-void dumpASM(BBlock *start, std::ostream& stream = std::cout)
-{
-        std::set<BBlock *> done, todo;
-        todo.insert(start);
-        while(todo.size()>0)
-        {
-                // Pop an arbitrary element from todo set
-                auto first = todo.begin();
-                BBlock *next = *first;
-                todo.erase(first);
-                next->dump(stream);
-                stream << std::endl;
-                done.insert(next);
-                if(next->tExit!=NULL && done.find(next->tExit)==done.end())
-                        todo.insert(next->tExit);
-                if(next->fExit!=NULL && done.find(next->fExit)==done.end())
-                        todo.insert(next->fExit);
-        }
-}
+void dumpASM(BBlock *start, std::ostream& stream = std::cout);
 
 /*
  * Iterate over each basic block that can be reached from the entry point
  * exactly once, so that we can dump out the entire graph.
  * This is a concrete example of the graph-walk described in lecture 7.
  */
-void dumpCFG(BBlock *start, std::ostream& stream = std::cout)
-{
-        stream << "digraph {" << std::endl;
-        std::set<BBlock *> done, todo;
-        todo.insert(start);
-        while(todo.size()>0)
-        {
-                // Pop an arbitrary element from todo set
-                auto first = todo.begin();
-                BBlock *next = *first;
-                todo.erase(first);
-                next->dumpCFG(stream);
-                done.insert(next);
-                if(next->tExit!=NULL && done.find(next->tExit)==done.end())
-                        todo.insert(next->tExit);
-                if(next->fExit!=NULL && done.find(next->fExit)==done.end())
-                        todo.insert(next->fExit);
-        }
-        stream << "}" << std::endl;
-}
+void dumpCFG(BBlock *start, std::ostream& stream = std::cout);
 
 #endif
