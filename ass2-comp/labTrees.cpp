@@ -42,7 +42,7 @@ void define_vars(std::ostream& stream, Environment& e) {
     auto var_names = e.get_all_of_type(type);
     if (!var_names.empty()) {
       auto itr = var_names.begin();
-      stream << "  " << type_as_string(type) << " " << *itr;
+      stream << "" << type_as_string(type) << " " << *itr;
       for (++itr; itr != var_names.end(); ++itr) {
         stream << ", " << *itr;
       }
@@ -52,7 +52,7 @@ void define_vars(std::ostream& stream, Environment& e) {
   for (auto& pair : e.get_const_values()) {
     Type type = pair.second.type;
     if (type == Type::ARRAY) type = Type::DOUBLE;
-    stream << "  " << type_as_string(type) << " " << pair.first << "[] = " << pair.second << ";" << std::endl;
+    stream << "" << type_as_string(type) << " " << pair.first << "[] = " << pair.second << ";" << std::endl;
   }
 }
 
@@ -207,10 +207,15 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
 #include "math.h"
 #include "stdlib.h"
 
+)";
+
+        define_vars(stream, e);
+
+        stream << R"(
 int main(int argc, char **argv)
 {
 )";
-        define_vars(stream, e);
+        
         //output_start_of_asm(stream);
 
         std::set<BBlock *> done, todo;
