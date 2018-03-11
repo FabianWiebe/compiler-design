@@ -26,8 +26,7 @@ int main(int argc, char **argv)
 		//std::cout << std::endl;
 		Environment env;
 		Statement *current_test = root;
-		current_test->dump();
-		std::cout << "simple test" << std::endl;
+		//current_test->dump();
 		BBlock *first_block = new BBlock();
 		current_test->convert(env, first_block);
 		//dump_asm(first_block);

@@ -59,8 +59,6 @@ public:
                 stream << lhs << " " << op << " " << rhs << " */" << std::endl;
                 if (op == "c") {
                   stream << "  " << name << " = " << lhs << ";" << std::endl;
-                } else if (op == "==" || op == "!=") {
-                  stream << "  if (" << lhs << " " << op << " " << rhs << ") " << std::endl;
                 } else if (op == "call") {
                   if (lhs == "print" || lhs == "io.write") {
                     stream << "  printf(";

@@ -205,6 +205,7 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
 {
         stream << R"(#include "stdio.h"
 #include "math.h"
+#include "stdlib.h"
 
 int main(int argc, char **argv)
 {
