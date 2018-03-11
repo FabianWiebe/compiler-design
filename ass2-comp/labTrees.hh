@@ -38,7 +38,7 @@ public:
         const std::string name, lhs, op, rhs;
         const Type l_type, r_type;
 
-        ThreeAd(const std::string& name, const std::string& op, const std::string& lhs, std::string& rhs, const Type l_type, const Type r_type) :
+        ThreeAd(const std::string& name, const std::string& op, const std::string& lhs, const std::string& rhs, const Type l_type, const Type r_type) :
                 name(name), op(op), lhs(lhs), rhs(rhs), l_type(l_type), r_type(r_type)
         {
         }
@@ -83,8 +83,8 @@ public:
                       }
                     }
                     stream << ");" << std::endl;
-                  } else if (op == "io.read") {
-                    stream << "  scanf(" << esc_str << "\"%ld" << esc_str << "\", " << name << ");" << std::endl;
+                  } else if (lhs == "io.read") {
+                    stream << "  scanf(" << esc_str << "\"%ld" << esc_str << "\", &"<< name << ");" << std::endl;
                   } else { // function call
                     stream << "  " << lhs << "(";
                     if (l_type != Type::UNDEFINED) {
@@ -97,6 +97,10 @@ public:
                   }
                 } else if (op == "^") {
                   stream << "  " << name << " = pow(" << lhs << ", " << rhs << ");" << std::endl;
+                } else if (op == "++") {
+                  stream << "  " << op << lhs << ";" << std::endl;
+                } else if (op == ">=" || op == "<=" || op == "<" || op == ">" || op == "==" || op == "!=") {
+                  stream << "  if(" << lhs << " " << op << " " << rhs << ")";
                 } else {
                   stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 }
@@ -344,29 +348,6 @@ public:
         }
 };
 
-class Increment : public Expression
-{
-public:
-        const std::string var_name;
-
-        Increment(const std::string& var_name) :
-                Expression("++"), var_name(var_name)
-        {
-        }
-
-        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
-        {
-          std::string name = makeNames(e, Type::DOUBLE);
-          //std::string array_name = array->convert(e, out).first;
-          //e.get(name);
-          return {name, Type::LONG};
-        }
-
-        void dump(std::ostream& stream=std::cout, int depth = 0) {
-          indent(stream, depth) << name << var_name << std::endl;
-        }
-};
-
 class Not : public Expression
 {
 public:
@@ -512,11 +493,14 @@ public:
             if (++itr != values.end()) {
               second = *itr;
               second_type = *++t_itr;
+            } else if (name == "io.read") {
+              second_type = Type::LONG;
+              second = Expression::makeNames(e, second_type);
             }
           }
-          //std::cout << first << type_as_string(first_type) << second << type_as_string(second_type) << std::endl;
+          //std::cout << "---<<<< " << name << "  " << first << " "<< type_as_string(first_type) << " " << second << " " << type_as_string(second_type) << std::endl;
           out->instructions.emplace_back(second, "call", name, first, first_type, second_type);
-          return {"", Type::UNDEFINED};
+          return {second, second_type};
         }
         void dump(std::ostream& stream=std::cout, int depth = 0) {
           indent(stream, depth) << "Statement(" << name << ")" << std::endl;
@@ -631,6 +615,27 @@ public:
           for (Statement* statement : statements) {
             statement->dump(stream, depth+1);
           }
+        }
+};
+
+class Increment : public Statement
+{
+public:
+        const std::string var_name;
+
+        Increment(const std::string& var_name) :
+                Statement("++"), var_name(var_name)
+        {
+        }
+
+        BBlock* convert(Environment& e, BBlock* out)
+        {
+          out->instructions.emplace_back(var_name, name, var_name, var_name, Type::LONG, Type::LONG);
+          return out;
+        }
+
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << name << var_name << std::endl;
         }
 };
 

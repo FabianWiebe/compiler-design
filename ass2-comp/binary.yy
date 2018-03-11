@@ -52,16 +52,13 @@ if : IF expr THEN stream END_KW             { $$ = new If($2, $4); }
 
 statement : command               { $$ = new CommandS(*$1); }
           | if                    { $$ = $1; }
-          | FOR simple_assignment COMMA expr DO stream END_KW
-              { $$ = new Seq({}, "for_loop");
-                /* $$->statements.push_back($2);
-                auto incr = std::make_shared<IncrementNode>($2->children.front()->value);
-                auto cmp = std::make_shared<CompNode>("<=", $2->children.front(), $4);
-                auto body = std::make_shared<Node>("loop_body", "");
-                body->children.push_back($6);
-                body->children.push_back(incr);
-                auto loop = std::make_shared<LoopNode>(cmp, body);
-                $$->children.push_back(loop); */ }
+          | FOR WORD EQUALS expr COMMA expr DO stream END_KW
+              { auto var = new Var($2);
+                auto assignment = new Assignment(var, $4);
+                auto cmp = new Comp("<=", var, $6);
+                auto body = new Seq({$8, new Increment($2)}, "loop_body");
+                auto loop = new Loop(cmp, body);
+                $$ = new Seq({assignment, loop}, "for_loop"); }
           | REPEAT stream UNTIL expr { $$ = new Loop(new Not($4), $2, false); }
           | WORD params           { $$ = new CommandS($1, $2->expressions); } // command without parenthesis
           | simple_assignment     { $$ = $1; }
