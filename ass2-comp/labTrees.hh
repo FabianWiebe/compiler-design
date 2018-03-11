@@ -26,7 +26,10 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_n
 
 std::string get_print_parm(Type type);
 
-void output_vars(std::ostream& stream, std::list<std::string>& var_names, Type type);
+void define_vars(std::ostream& stream, Environment& e);
+void output_vars(std::ostream& stream, Environment& e);
+
+void define_vars(std::ostream& stream, std::list<std::string>& var_names, Type type);
 
 bool is_digits(const std::string &str);
 
@@ -786,7 +789,7 @@ extern Statement *test, *test2, *test3;
  * exactly once, so that we can dump out the entire graph.
  * This is a concrete example of the graph-walk described in lecture 7.
  */
-void dumpASM(BBlock *start, std::ostream& stream = std::cout);
+void dumpASM(Environment& e, BBlock *start, std::ostream& stream = std::cout);
 
 /*
  * Iterate over each basic block that can be reached from the entry point

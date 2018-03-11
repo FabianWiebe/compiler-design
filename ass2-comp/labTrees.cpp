@@ -35,18 +35,37 @@ std::string get_print_parm(Type type) {
     return "";
 }
 
-void output_vars(std::ostream& stream, std::list<std::string>& var_names, Type type) {
-  if (var_names.empty()) return;
-  for (const std::string& var_name : var_names) {
-    switch(type) {
-      case Type::STRING: {
-        stream << "  printf(\"" << var_name << " = \");" << std::endl;
-        stream << "  printf(var_name);" << std::endl;
-        stream << "  printf(\\n);" << std::endl;
-        break;
+std::list<Type> types{Type::LONG, Type::DOUBLE, Type::BOOL, Type::STRING};
+
+void define_vars(std::ostream& stream, Environment& e) {
+  for (Type type : types) {
+    auto var_names = e.get_all_of_type(type);
+    if (!var_names.empty()) {
+      auto itr = var_names.begin();
+      stream << "  " << type_as_string(type) << " " << *itr;
+      for (++itr; itr != var_names.end(); ++itr) {
+        stream << ", " << *itr;
       }
-      default: {
-        stream << "  printf(\"" << var_name << " = " << get_print_parm(type) << "\\n\", " << var_name << ");" << std::endl;
+      stream << ";" << std::endl;
+    }
+  }
+}
+
+void output_vars(std::ostream& stream, Environment& e) {
+
+  for (Type type : types) { 
+    auto var_names = e.get_all_of_type(type);
+    for (const std::string& var_name : var_names) {
+      switch(type) {
+        case Type::STRING: {
+          stream << "  printf(\"" << var_name << " = \");" << std::endl;
+          stream << "  printf(var_name);" << std::endl;
+          stream << "  printf(\\n);" << std::endl;
+          break;
+        }
+        default: {
+          stream << "  printf(\"" << var_name << " = " << get_print_parm(type) << "\\n\", " << var_name << ");" << std::endl;
+        }
       }
     }
   }
@@ -177,8 +196,17 @@ Statement *test3 = new Seq({
  * exactly once, so that we can dump out the entire graph.
  * This is a concrete example of the graph-walk described in lecture 7.
  */
-void dumpASM(BBlock *start, std::ostream& stream)
+void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
 {
+        stream << R"(#include "stdio.h"
+#include "math.h"
+
+int main(int argc, char **argv)
+{
+)";
+        define_vars(stream, e);
+        //output_start_of_asm(stream);
+
         std::set<BBlock *> done, todo;
         todo.insert(start);
         while(todo.size()>0)
@@ -195,6 +223,10 @@ void dumpASM(BBlock *start, std::ostream& stream)
                 if(next->fExit!=NULL && done.find(next->fExit)==done.end())
                         todo.insert(next->fExit);
         }
+
+        //output_end_of_asm(stream, vars);
+        output_vars(stream, e);
+        stream << "}" << std::endl;
 }
 
 /*
