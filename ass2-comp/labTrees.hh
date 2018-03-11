@@ -84,7 +84,7 @@ public:
                     }
                     stream << ");" << std::endl;
                   } else if (lhs == "io.read") {
-                    stream << "  scanf(" << esc_str << "\"%ld" << esc_str << "\", &"<< name << ");" << std::endl;
+                    stream << "  if (scanf(" << esc_str << "\"%ld" << esc_str << "\", &"<< name << ") == EOF) exit(-1);" << std::endl;
                   } else { // function call
                     stream << "  " << lhs << "(";
                     if (l_type != Type::UNDEFINED) {
