@@ -209,6 +209,12 @@ public:
           e.set(str, type);
           return str;
         }
+        static std::string makeNames() 
+        {
+          // Lecture 8 / slide 11.
+          // Virtual (but not pure) to allow overriding in the leaves.
+          return "_t" + std::to_string(tmp_counter++);
+        }
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock*) = 0; // Lecture 8 / slide 12.
         
         virtual void dump(std::ostream& stream=std::cout, int depth = 0) = 0;
@@ -411,7 +417,11 @@ public:
         }
 
         virtual void assign(Environment & e, BBlock* out, Expression* value) {
-          // implement
+          Array* ptr = dynamic_cast<Array*>(value);
+          if (!ptr) throw std::invalid_argument( "Expression is not an array." );
+          for (auto l_itr = expressions.begin(), r_itr = ptr->expressions.begin(); l_itr != expressions.end(); ++l_itr, ++r_itr) {
+            (*l_itr)->assign(e, out, *r_itr);
+          }
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -575,20 +585,26 @@ public:
         {
           if (lhs->expressions.size() == 1) {
             lhs->expressions.front()->assign(e, out, rhs->expressions.front());
+          } else {
+            Array* tmp_values = new Array({}, "tmp values");
+            for (size_t i = 0; i < lhs->expressions.size(); ++i) {
+              tmp_values->expressions.push_back(new Var(Expression::makeNames()));
+            }
+            tmp_values->assign(e, out, rhs);
+            lhs->assign(e, out, tmp_values);
           }
-          /*std::string left, right;
-          Type left_type, right_type;
-          std::tie(right, right_type) = rhs->convert(e, out);
-          lhs->assign_type(e, right_type);
-          std::tie(left, left_type) = lhs->convert(e, out);
-          out->instructions.emplace_back(left, "c", right, right, left_type, right_type); */
           return out;
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
           indent(stream, depth) << "Statement(" << name << ")" << std::endl;
-          lhs->dump(stream, depth+1);
-          rhs->dump(stream, depth+1);
+          if (lhs->expressions.size() == 1) {
+            lhs->expressions.front()->dump(stream, depth+1);
+            rhs->expressions.front()->dump(stream, depth+1);
+          } else {
+            lhs->dump(stream, depth+1);
+            rhs->dump(stream, depth+1);
+          }
         }
 };
 
