@@ -353,6 +353,83 @@ public:
         }
 };
 
+class ArrayAccess : public Expression
+{
+public:
+        Expression* array;
+
+        ArrayAccess(Expression* array) :
+                Expression("[]"), array(array)
+        {
+        }
+
+        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
+        {
+          std::string name = makeNames(e, Type::DOUBLE);
+          // store result in programme initial list
+          std::string array_name = array->convert(e, out).first;
+          //e.get(name);
+          return {name, Type::DOUBLE};
+        }
+
+        virtual void assign_type(Environment & e, Type t) {
+          //e.set(var_name, t);
+        }
+
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << name << std::endl;
+          array->dump(stream, depth + 1);
+        }
+};
+
+class Increment : public Expression
+{
+public:
+        Expression* value;
+
+        Increment(Expression* value) :
+                Expression("++"), value(value)
+        {
+        }
+
+        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
+        {
+          std::string name = makeNames(e, Type::DOUBLE);
+          //std::string array_name = array->convert(e, out).first;
+          //e.get(name);
+          return {name, Type::LONG};
+        }
+
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << name << std::endl;
+          value->dump(stream, depth + 1);
+        }
+};
+
+class Not : public Expression
+{
+public:
+        Expression* bool_value;
+
+        Not(Expression* bool_value) :
+                Expression("!"), bool_value(bool_value)
+        {
+        }
+
+        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
+        {
+          std::string name = makeNames(e, Type::BOOL);
+          std::string bool_name = bool_value->convert(e, out).first;
+          // out...
+          return {name, Type::BOOL};
+        }
+
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << name << std::endl;
+          bool_value->dump(stream, depth + 1);
+        }
+};
+
 class Array : public Expression
 {
 public:
