@@ -104,7 +104,7 @@ expr : l_expr             { $$ = $1; }
      | expr DIV expr      { $$ = new Math($2, $1, $3); }
      | expr POW expr      { $$ = new Math($2, $1, $3); }
      | expr MOD expr      { $$ = new Math($2, $1, $3); }
-     | SIZE expr          { $$ = new Size($2); }
+     | SIZE WORD          { $$ = new Size($2); }
      ;
 
 l_expr : WORD OPENING_SQUARE_BRACKET expr CLOSING_SQUARE_BRACKET

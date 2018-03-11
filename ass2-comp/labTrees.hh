@@ -289,7 +289,11 @@ public:
           std::string name;
           std::tie(name, type) = value->convert(e, out);
           e.set(var_name, type);
-          out->instructions.emplace_back(var_name, "c", name, name, type, type);
+          if (type != Type::ARRAY) {
+            out->instructions.emplace_back(var_name, "c", name, name, type, type);
+          } else {
+            e.update_name(name, var_name);
+          }
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -300,25 +304,18 @@ public:
 class Size : public Expression
 {
 public:
-        Expression* array;
+        std::string array_name;
 
-        Size(Expression* array) :
-                Expression("#"), array(array)
-        {
-        }
+        Size(const std::string& array_name) :
+                Expression("#"), array_name(array_name) {}
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          std::string name = makeNames(e, Type::LONG);
-          // store result in programme initial list
-          std::string array_name = array->convert(e, out).first;
-          long size = 0l; //e.get(name);
-          return {name, Type::LONG};
+          return {std::to_string(e.get_size(array_name)), Type::LONG};
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
-          indent(stream, depth) << name << std::endl;
-          array->dump(stream, depth + 1);
+          indent(stream, depth) << name << array_name << std::endl;
         }
 };
 
@@ -375,11 +372,30 @@ public:
         }
 };
 
+class Constant : public Expression
+{
+public:
+        Value value;
+
+        Constant(Value value) :
+                Expression("constant"), value(value)
+        {
+        }
+
+        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
+        {
+          return {value.as_string(), value.type};
+        }
+
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << value << std::endl;
+        }
+};
+
 class Array : public Expression
 {
 public:
         std::list<Expression*> expressions;
-        Type type;
 
         Array(std::initializer_list<Expression*> expressions, const std::string& name = "array") :
                 Expression(name), expressions(expressions)
@@ -388,12 +404,17 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
+          std::vector<Value> array;
+          array.reserve(expressions.size());
           for (Expression* expression : expressions) {
-            std::string name;
-            Type type;
-            std::tie(name, type) = expression->convert(e, out);
+            Constant* ptr = ptr = dynamic_cast<Constant*>(expression);
+            if (!ptr) throw std::invalid_argument( "Non-constant in array." );
+            array.push_back(ptr->value);
           }
-          return {makeNames(e, Type::ARRAY), Type::ARRAY};
+          std::string name = makeNames(e, Type::ARRAY);
+          Value array_value(array);
+          e.store(name, array_value);
+          return {name, Type::ARRAY};
         }
 
         virtual void assign_type(Environment & e, Type t) {
@@ -413,26 +434,6 @@ public:
           for (Expression* expression : expressions) {
             expression->dump(stream, depth+1);
           }
-        }
-};
-
-class Constant : public Expression
-{
-public:
-        Value value;
-
-        Constant(Value value) :
-                Expression("constant"), value(value)
-        {
-        }
-
-        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
-        {
-          return {value.as_string(), value.type};
-        }
-
-        void dump(std::ostream& stream=std::cout, int depth = 0) {
-          indent(stream, depth) << value << std::endl;
         }
 };
 

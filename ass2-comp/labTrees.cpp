@@ -49,6 +49,9 @@ void define_vars(std::ostream& stream, Environment& e) {
       stream << ";" << std::endl;
     }
   }
+  for (auto& pair : e.get_const_values()) {
+    std::cout << "  " << type_as_string(pair.second.type) << " " << pair.first << " = " << pair.second << ";" << std::endl;
+  }
 }
 
 void output_vars(std::ostream& stream, Environment& e) {

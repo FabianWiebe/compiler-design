@@ -5,11 +5,15 @@
 
 // cannot be defined in header due to linker issues
 std::ostream& ArrayContainer::to_stream(std::ostream& stream) const {
-	stream << "Array:";
-	int i = 0;
-	for (const auto & val : value) {
-		stream << std::endl << i++ << ":\t" << *val.value;
+	stream << "{";
+	if (!value.empty()) {
+		auto itr = value.begin();
+		stream << *itr;
+		for (++itr; itr != value.end(); ++itr) {
+			stream << ", " << *itr;
+		}
 	}
+	stream << "}";
 	return stream;
 }
 

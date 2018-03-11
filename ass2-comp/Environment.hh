@@ -29,20 +29,43 @@ public:
 			mapping.insert(std::make_pair(name, type));
 		}
 	}
-	void add_function(std::string& name, Value& value) {
+	void store(const std::string& name, Value& value) {
+		auto it = const_values.find(name);
+		if (it != const_values.end()) {
+			throw std::invalid_argument( "Variable name \"" + name + "\" already used" );
+		} else {
+			const_values.insert(std::make_pair(name, value));
+		}
+	}
+	void add_function(const std::string& name, Value& value) {
 		auto it = functions.find(name);
 		if (it != functions.end()) {
 			it->second = value;
 		} else {
 			functions.insert(std::make_pair(name, value));
-		}	}
-	Type get(std::string name) {
+		}
+	}
+	Type get(const std::string& name) {
+		auto itr = const_values.find(name);
+		if (itr != const_values.end()) {
+			return itr->second.type;
+		}
 		auto mapping = stack.top();
 		auto it = mapping.find(name);
 		if (it != mapping.end()) {
 			return it->second;
 		}
 		throw std::invalid_argument( "Variable name \"" + name + "\" not found in current context" );
+	}
+
+	long get_size(const std::string& name) {
+		return const_values.find(name)->second.as_array().size();
+	}
+
+	void update_name(const std::string& old_name, const std::string& new_name) {
+		auto itr = const_values.find(old_name);
+		const_values.insert(std::make_pair(new_name, itr->second));
+		const_values.erase(itr);
 	}
 
 	std::list<std::string> get_all_of_type(Type type) {
@@ -72,8 +95,12 @@ public:
 		return stream;
 	}
 	bool returning = false;
+	std::map<std::string, Value>& get_const_values() {
+		return const_values;
+	}
 private:
 	std::stack<std::map<std::string, Type>> stack;
+	std::map<std::string, Value> const_values;
 	std::map<std::string, Value> functions;
 };
 
