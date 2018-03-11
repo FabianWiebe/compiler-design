@@ -249,7 +249,7 @@ private:
 public:
         const std::string name;
 
-        Expression(const std::string& name) : name(name)
+        Expression(const std::string& name = "uninitialized") : name(name)
         {
         }
         virtual std::string makeNames(Environment& e, Type type) 
@@ -511,6 +511,64 @@ public:
         }
 };
 
+class Function
+{
+public:
+        std::list<Expression*> parameters;
+        std::string name;
+
+        Function(const std::string& name, std::initializer_list<Expression*> parameters) :
+                name(name), parameters(parameters)
+        {
+        }
+
+        std::pair<std::string, Type> convert(Environment& e, BBlock *out)
+        {
+          std::list<std::string> values;
+          std::list<Type> types;
+          for (Expression* par : parameters) {
+            std::string value;
+            Type type;
+            std::tie(value, type) = par->convert(e, out);
+            values.push_back(value);
+            types.push_back(type);
+          }
+          std::string first, second;
+          Type first_type, second_type;
+          auto itr = values.begin();
+          auto t_itr = types.begin();
+          if (itr != values.end()) {
+            first = *itr;
+            first_type = *t_itr;
+            if (++itr != values.end()) {
+              second = *itr;
+              second_type = *++t_itr;
+            }
+          }
+          out->instructions.emplace_back(second, "call", name, first, first_type, second_type);
+          return {"", Type::UNDEFINED};
+        }
+        void dump(std::ostream& stream=std::cout, int depth = 0) {
+          indent(stream, depth) << "Statement(" << name << ")" << std::endl;
+          for (Expression* par : parameters) {
+            par->dump(stream, depth+1);
+          }
+        }
+};
+
+class FunctionE : public Expression, public Function
+{
+public:
+  using Function::Function;
+  FunctionE(const Function& function) : Function(function) {}
+  virtual std::pair<std::string, Type> convert(Environment& e, BBlock *out) {
+    return Function::convert(e, out);
+  }
+  void dump(std::ostream& stream=std::cout, int depth = 0) {
+    Function::dump(stream, depth);
+  }
+};
+
 
 /******************** Statements ********************/
 class Statement
@@ -518,13 +576,28 @@ class Statement
 public:
         const std::string name;
 
-        Statement(const std::string& name) : name(name)
+        Statement(const std::string& name = "uninitialized") : name(name)
         {
         }
         virtual BBlock* convert(Environment& e, BBlock *) = 0;
 
         virtual void dump(std::ostream& stream=std::cout, int depth = 0) = 0;
 };
+
+class FunctionS : public Statement, public Function
+{
+public:
+  using Function::Function;
+  FunctionS(const Function& function) : Function(function) {}
+  BBlock* convert(Environment& e, BBlock *out) {
+    Function::convert(e, out);
+    return out;
+  }
+  void dump(std::ostream& stream=std::cout, int depth = 0) {
+    Function::dump(stream, depth);
+  }
+};
+
 
 
 class Assignment : public Statement
@@ -675,50 +748,6 @@ public:
         }
 };
 
-class Function : public Statement
-{
-public:
-        std::list<Expression*> parameters;
-
-        Function(const std::string& name, std::initializer_list<Expression*> parameters) :
-                Statement(name), parameters(parameters)
-        {
-        }
-
-        BBlock* convert(Environment& e, BBlock *out)
-        {
-          std::list<std::string> values;
-          std::list<Type> types;
-          for (Expression* par : parameters) {
-            std::string value;
-            Type type;
-            std::tie(value, type) = par->convert(e, out);
-            values.push_back(value);
-            types.push_back(type);
-          }
-          std::string first, second;
-          Type first_type, second_type;
-          auto itr = values.begin();
-          auto t_itr = types.begin();
-          if (itr != values.end()) {
-            first = *itr;
-            first_type = *t_itr;
-            if (++itr != values.end()) {
-              second = *itr;
-              second_type = *++t_itr;
-            }
-          }
-          out->instructions.emplace_back(second, "call", name, first, first_type, second_type);
-          return out;
-        }
-        void dump(std::ostream& stream=std::cout, int depth = 0) {
-          indent(stream, depth) << "Statement(" << name << ")" << std::endl;
-          for (Expression* par : parameters) {
-            par->dump(stream, depth+1);
-          }
-        }
-};
-
 
 /* Test casesType:: */
 Statement *test = new Seq({
@@ -814,10 +843,10 @@ Statement *test3 = new Seq({
                                                   new Constant(1l)
                                           )
                                   )
-                          ),new Function("io.write",
+                          ),new FunctionS("io.write",
                           {new Constant(std::string("x = ")),
                           new Var("x")}),
-                          new Function("print",
+                          new FunctionS("print",
                           {new Constant(std::string("\\ny =")),
                           new Var("y")})
 });

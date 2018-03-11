@@ -69,6 +69,9 @@ int main(int argc, char **argv)
 		parse_tree_file.open("cfg.dot");
 		dumpCFG(first_block, parse_tree_file);
 		parse_tree_file.close();
+
+		Function* ptr = new Function("test", {});
+		FunctionE* test = new FunctionE(*ptr);
 		
 		//std::cout << e;
 	}
