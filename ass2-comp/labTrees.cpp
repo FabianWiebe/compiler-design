@@ -1,5 +1,41 @@
 #include "labTrees.hh"
 
+std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool is_expression) {
+  std::list<std::string> values;
+  std::list<Type> types;
+  for (Expression* par : parameters) {
+    std::string value;
+    Type type;
+    std::tie(value, type) = par->convert(e, out);
+    values.push_back(value);
+    types.push_back(type);
+  }
+  std::string first = "", second = "";
+  Type first_type = Type::UNDEFINED, second_type = Type::UNDEFINED;
+  auto itr = values.begin();
+  auto t_itr = types.begin();
+  if (itr != values.end()) {
+    first = *itr;
+    first_type = *t_itr;
+    if (++itr != values.end()) {
+      second = *itr;
+      second_type = *++t_itr;
+    }
+  }
+  Type return_type = Type::LONG;
+  if (name != "io.read" && name != "io.write" && name != "print") {
+    return_type = e.get_function(name)->dump_function(e, types);
+  }
+  if (is_expression) {
+    // use return value
+    second_type = return_type;
+    second = Expression::makeNames(e, second_type);
+  }
+  //std::cout << "---<<<< " << name << "  " << first << " "<< type_as_string(first_type) << " " << second << " " << type_as_string(second_type) << std::endl;
+  out->instructions.emplace_back(second, std::string("call") + (is_expression ? "E" : "S"), name, first, first_type, second_type);
+  return {second, second_type};
+}
+
 void output_start_of_asm(std::ostream& stream) {
   stream << "  asm(" << std::endl;
 }
@@ -31,11 +67,24 @@ std::string get_print_parm(Type type) {
       case Type::BOOL: {
         return "%d";
       }
+      case Type::STRING: {
+        return "%s";
+      }
     }
     return "";
 }
 
 std::list<Type> types{Type::LONG, Type::DOUBLE, Type::BOOL, Type::STRING};
+
+std::string type_to_string(Type type, std::string name) {
+  if (type == Type::ARRAY) {
+      return std::string("double ") + name + "[]";
+    } else if (type == Type::STRING) {
+      return std::string("char ") + name + "[]";
+    } else {
+      return type_as_string(type) + " " + name;
+    }
+}
 
 void define_vars(std::ostream& stream, Environment& e) {
   for (Type type : types) {
@@ -51,8 +100,8 @@ void define_vars(std::ostream& stream, Environment& e) {
   }
   for (auto& pair : e.get_const_values()) {
     Type type = pair.second.type;
-    if (type == Type::ARRAY) type = Type::DOUBLE;
-    stream << "" << type_as_string(type) << " " << pair.first << "[] = " << pair.second << ";" << std::endl;
+    std::string str = type == Type::STRING ? "\"" : "";
+    stream << type_to_string(type, pair.first) << " = " << str << pair.second << str << ";" << std::endl;
   }
 }
 
@@ -195,6 +244,24 @@ Statement *test3 = new Seq({
                           new Var("y")})
 });
 
+void dump_blocks(BBlock *start, std::ostream& stream) {
+  std::set<BBlock *> done, todo;
+  todo.insert(start);
+  while(todo.size()>0)
+  {
+          // Pop an arbitrary element from todo set
+          auto first = todo.begin();
+          BBlock *next = *first;
+          todo.erase(first);
+          next->dump(stream);
+          stream << std::endl;
+          done.insert(next);
+          if(next->tExit!=NULL && done.find(next->tExit)==done.end())
+                  todo.insert(next->tExit);
+          if(next->fExit!=NULL && done.find(next->fExit)==done.end())
+                  todo.insert(next->fExit);
+  }
+}
 
 /*
  * Iterate over each basic block that can be reached from the entry point
@@ -210,30 +277,32 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
 )";
 
         define_vars(stream, e);
+        for (auto & pair : e.get_functions()) {
+          Function* func = pair.second;
+          if (func->first_block) {
+            stream << std::endl;
+            stream << type_as_string(func->return_type) << " " << func->name << "(";
+            if (!func->parameter_types.empty()) {
+              auto type_itr = func->parameter_types.begin();
+              auto name_itr = func->parameter_names.begin();
+              stream << type_to_string(*type_itr, *name_itr);
+              for(++type_itr, ++name_itr; type_itr != func->parameter_types.end(); ++type_itr, ++name_itr) {
+                stream << ", " << type_to_string(*type_itr, *name_itr);
+              }
+              stream << ") {" << std::endl;
+                dump_blocks(func->first_block, stream);
+              stream << "}" << std::endl;
+            }
+          }
+        }
 
         stream << R"(
 int main(int argc, char **argv)
 {
 )";
-        
         //output_start_of_asm(stream);
 
-        std::set<BBlock *> done, todo;
-        todo.insert(start);
-        while(todo.size()>0)
-        {
-                // Pop an arbitrary element from todo set
-                auto first = todo.begin();
-                BBlock *next = *first;
-                todo.erase(first);
-                next->dump(stream);
-                stream << std::endl;
-                done.insert(next);
-                if(next->tExit!=NULL && done.find(next->tExit)==done.end())
-                        todo.insert(next->tExit);
-                if(next->fExit!=NULL && done.find(next->fExit)==done.end())
-                        todo.insert(next->fExit);
-        }
+        dump_blocks(start, stream);        
 
         //output_end_of_asm(stream, vars);
         //output_vars(stream, e);

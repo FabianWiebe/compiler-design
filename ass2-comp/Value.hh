@@ -63,7 +63,7 @@ struct FunctionContainer : public BaseStore {
 };
 
 
-enum class Type {UNDEFINED, BOOL, LONG, DOUBLE, STRING, ARRAY, FUNCTION};
+enum class Type {UNDEFINED, VOID, BOOL, LONG, DOUBLE, STRING, ARRAY, FUNCTION};
 const std::string & type_as_string(const Type& type);
 
 

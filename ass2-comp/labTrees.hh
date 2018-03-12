@@ -17,6 +17,7 @@
 #include <iostream>
 #include <utility>
 #include <tuple>
+#include <sstream>
 #include "Value.hh"
 #include "Environment.hh"
 
@@ -59,33 +60,35 @@ public:
                 stream << lhs << " " << op << " " << rhs << " */" << std::endl;
                 if (op == "c") {
                   stream << "  " << name << " = " << lhs << ";" << std::endl;
-                } else if (op == "call") {
-                  if (lhs == "print" || lhs == "io.write") {
-                    stream << "  printf(";
+                } else if (op == "callE") {
+                  if (lhs == "io.read") {
+                    stream << "  if (scanf(" << esc_str << "\"%ld" << esc_str << "\", &"<< name << ") == EOF) exit(-1);" << std::endl;
+                  } else { // function call
+                    stream << "  " << (r_type != Type::UNDEFINED ? name + " = " : "") << lhs << "(";
                     if (l_type != Type::UNDEFINED) {
-                      stream << esc_str << "\"" << get_print_parm(l_type);
-                      if (l_type == Type::STRING) {
-                        stream << rhs;
-                      }
+                      stream << rhs;
+                    }
+                    stream << ");" << std::endl;
+                  }
+                } else if (op == "callS") {
+                   if (lhs == "print" || lhs == "io.write") {
+                    stream << "  printf(" << esc_str << "\"";
+                    if (l_type != Type::UNDEFINED) {
+                      stream << get_print_parm(l_type);
                       if (r_type != Type::UNDEFINED) {
                         if (lhs == "print") stream << "\\t";
                         stream << get_print_parm(r_type);
-                        if (r_type == Type::STRING) {
-                          stream << name;
-                        }
                       }
-                      if(lhs == "print") stream << esc_str << "\\n";
-                      stream << esc_str << "\"";
-                      if (l_type != Type::STRING) {
-                        stream << ", " << rhs;
-                      }
-                      if (r_type != Type::UNDEFINED && r_type != Type::STRING) {
+                      if (lhs == "print") stream << esc_str << "\\n";
+                      stream << esc_str << "\", " << rhs;
+                      if (r_type != Type::UNDEFINED) {
                         stream << ", " << name;
                       }
+                    } else {
+                      if (lhs == "print") stream << esc_str << "\\n";
+                      stream << esc_str << "\"";
                     }
                     stream << ");" << std::endl;
-                  } else if (lhs == "io.read") {
-                    stream << "  if (scanf(" << esc_str << "\"%ld" << esc_str << "\", &"<< name << ") == EOF) exit(-1);" << std::endl;
                   } else { // function call
                     stream << "  " << lhs << "(";
                     if (l_type != Type::UNDEFINED) {
@@ -106,6 +109,10 @@ public:
                   stream << "  " << name << "[" << rhs << " - 1] = " << lhs << ";" << std::endl;
                 } else if (op == "!") {
                   stream << "  " << name << " = !" << lhs << ";" << std::endl;
+                } else if (op == "return") {
+                  stream << "  return " << lhs << ";" << std::endl;
+                } else if (op == "#") {
+                  stream << "  " << name << " = " << "sizeof(" << lhs << ") / sizeof(" << lhs << "[0]);" << std::endl;
                 } else {  
                   stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 }
@@ -170,7 +177,7 @@ public:
                         i.dump(stream);
                 }
                 if (instructions.empty() && !tExit) {
-                  stream << "  exit(0);" << std::endl;
+                  stream << "  return 0;" << std::endl;
                 }
                 if (fExit) {
                   stream << "  if(" << instructions.back().name << ")" << std::endl;
@@ -320,7 +327,9 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          return {std::to_string(e.get_size(array_name)), Type::LONG};
+          std::string name = makeNames(e, Type::LONG);
+          out->instructions.emplace_back(name, "#", array_name, array_name, Type::ARRAY, Type::ARRAY);
+          return {name, Type::LONG};
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -395,6 +404,11 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
+          if (value.type == Type::DOUBLE || value.type == Type::STRING) {
+            std::string name = makeNames();
+            e.store(name, value);
+            return {name, value.type};
+          }
           return {value.as_string(), value.type};
         }
 
@@ -487,38 +501,8 @@ public:
         Command(const std::string& name, std::list<Expression*> parameters) :
                 name(name), parameters(parameters) {}
 
-        std::pair<std::string, Type> convert(Environment& e, BBlock *out)
-        {
-          std::list<std::string> values;
-          std::list<Type> types;
-          for (Expression* par : parameters) {
-            std::string value;
-            Type type;
-            std::tie(value, type) = par->convert(e, out);
-            values.push_back(value);
-            types.push_back(type);
-          }
-          std::string first = "", second = "";
-          Type first_type = Type::UNDEFINED, second_type = Type::UNDEFINED;
-          auto itr = values.begin();
-          auto t_itr = types.begin();
-          if (itr != values.end()) {
-            first = *itr;
-            first_type = *t_itr;
-            if (++itr != values.end()) {
-              second = *itr;
-              second_type = *++t_itr;
-            } else if (name == "io.read") {
-              second_type = Type::LONG;
-              second = Expression::makeNames(e, second_type);
-            }
-          }
-          //std::cout << "---<<<< " << name << "  " << first << " "<< type_as_string(first_type) << " " << second << " " << type_as_string(second_type) << std::endl;
-          out->instructions.emplace_back(second, "call", name, first, first_type, second_type);
-          return {second, second_type};
-        }
+        std::pair<std::string, Type> convert(Environment& e, BBlock *out, bool is_expression);
         void dump(std::ostream& stream=std::cout, int depth = 0) {
-          indent(stream, depth) << "Statement(" << name << ")" << std::endl;
           for (Expression* par : parameters) {
             par->dump(stream, depth+1);
           }
@@ -531,9 +515,10 @@ public:
   using Command::Command;
   CommandE(const Command& command) : Command(command) {}
   virtual std::pair<std::string, Type> convert(Environment& e, BBlock *out) {
-    return Command::convert(e, out);
+    return Command::convert(e, out, true);
   }
   void dump(std::ostream& stream=std::cout, int depth = 0) {
+    indent(stream, depth) << "Expression(" << Command::name << ")" << std::endl;
     Command::dump(stream, depth);
   }
 };
@@ -559,10 +544,11 @@ public:
   using Command::Command;
   CommandS(const Command& command) : Command(command) {}
   BBlock* convert(Environment& e, BBlock *out) {
-    Command::convert(e, out);
+    Command::convert(e, out, false);
     return out;
   }
   void dump(std::ostream& stream=std::cout, int depth = 0) {
+    indent(stream, depth) << "Statement(" << Command::name << ")" << std::endl;
     Command::dump(stream, depth);
   }
 };
@@ -700,22 +686,54 @@ public:
 class Function : public Statement
 {
 public:
-        Array *parameters;
+        std::list<std::string> parameter_names;
+        std::list<Type> parameter_types;
+        Type return_type;
+        BBlock* first_block;
         Statement *body;
+        bool was_dumped;
 
-        Function(const std::string& name, Array* parameters, Statement *body) :
-                Statement(name), parameters(parameters), body(body)
+        Function(const std::string& name, std::list<std::string>& parameter_names, Statement *body) :
+                Statement(name), parameter_names(parameter_names), body(body), was_dumped(false)
         {
         }
 
         BBlock* convert(Environment& e, BBlock *out)
         {
-          // not implemented
+          e.add_function(name, this);
           return out;
         }
+
+        Type dump_function(Environment& e, const std::list<Type>& types) {
+          if (was_dumped) {
+            if (return_type == Type::UNDEFINED) return_type = e.get_return_type();
+            if (return_type == Type::UNDEFINED) return_type = Type::LONG; // if recursion calls itself before a normal return
+            return return_type;
+          }
+          was_dumped = true;
+          parameter_types = types;
+          first_block = new BBlock();
+          BBlock* return_block = new BBlock();
+          e.new_context(return_block);
+          auto type_itr = types.begin();
+          for (auto& name : parameter_names) {
+            //e.set_function_parm(name, *type_itr++);
+          }
+          body->convert(e, first_block);
+          return_type = e.clear_context();
+          if (return_type == Type::UNDEFINED) return_type = Type::VOID;
+          return return_type;
+        }
+
         void dump(std::ostream& stream=std::cout, int depth = 0) {
           indent(stream, depth) << "Function(" << name << ")" << std::endl;
-          parameters->dump(stream, depth+1);
+          if (!parameter_names.empty()) {
+            indent(stream, depth) << "parameter_names: ";
+            for (auto &parameter : parameter_names) {
+              stream << parameter << ", ";
+            }
+            stream << std::endl;
+          }
           body->dump(stream, depth+1);
         }
 };
@@ -726,13 +744,15 @@ public:
         Expression *expression;
 
         Return(Expression* expression) :
-                Statement("return"), expression(expression)
-        {
-        }
+                Statement("return"), expression(expression) {}
 
         BBlock* convert(Environment& e, BBlock *out)
         {
-          // not implemented
+          std::string name;
+          Type type;
+          std::tie(name, type) = expression->convert(e, out);
+          e.set_return_type(type);
+          out->instructions.emplace_back("", "return", name, name, type, type);
           return out;
         }
         void dump(std::ostream& stream=std::cout, int depth = 0) {

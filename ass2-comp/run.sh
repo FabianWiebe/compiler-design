@@ -1,10 +1,14 @@
+#!/bin/bash
 make
-clear
-rm -f ./target.cc
-./comp test_case_4.lua
-make target
-./target
-dot cfg.dot -Ocfg.svg -Tsvg
+for i in `seq 1 7`;
+do
+	echo "test case $i:"
+	./comp test_case_$i.lua
+	make target
+	echo "10" | ./target
+	dot cfg.dot -Ocfg$i.svg -Tsvg
+	echo ""
+done
 #./comp test_case_2.lua
 #echo "" | ./comp test_case_3.lua
 #echo "8" | ./comp test_case_3.lua

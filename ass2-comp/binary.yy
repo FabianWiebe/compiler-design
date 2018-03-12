@@ -25,7 +25,8 @@
 %type <Statement*> statement assignment simple_assignment if
 %type <Command*> command
 %type <Expression*> expr l_expr
-%type <Array*> params function_params l_params 
+%type <Array*> params l_params
+%type <std::list<std::string>> function_params
 %token END 0 "end of file"
 
 %left <std::string> EQUALS
@@ -86,9 +87,10 @@ l_params : l_expr                { $$ = new Array({$1}, "left expressions"); }
                                    $$->expressions.push_back($3); }
          ;
 
-function_params : WORD                       { $$ = new Array({new Var($1)}, "function parameter names"); }
+function_params : WORD                       { $$ = std::list<std::string>();
+                                               $$.push_back($1); }
                 | function_params COMMA WORD { $$ = $1;
-                                               $$->expressions.push_back(new Var($3)); }
+                                               $$.push_back($3); }
                 ;
 
 expr : l_expr             { $$ = $1; }
