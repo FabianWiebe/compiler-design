@@ -40,18 +40,25 @@ void output_start_of_asm(std::ostream& stream) {
   stream << "  asm(" << std::endl;
 }
 
-void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_names) {
+std::string format_type(Type type) {
+  if (type == Type::DOUBLE) {
+    return "x";
+  }
+  return "g";
+}
+
+void output_end_of_asm(std::ostream& stream, const std::list<std::pair<std::string, Type>>& var_names) {
   stream << ":";
   if (!var_names.empty()) {
     auto itr = var_names.begin();
-    stream << " [" << *itr << "] \"+g\" (" << *itr << ")";
+    stream << " [" << itr->first << "] \"+" << format_type(itr->second) << "\" (" << itr->first << ")";
     for (++itr; itr != var_names.end(); ++itr) {
-      stream << "," << std::endl << "  [" << *itr << "] \"+g\" (" << *itr << ")";
+      stream << "," << std::endl << "  [" << itr->first << "] \"+" << format_type(itr->second) << "\" (" << itr->first << ")";
     }
   }
   stream << R"(
 :
-: "rax", "rbx", "rdx", "cc"
+: "rax", "rbx", "rdx", "cc", "xmm0", "xmm1"
   );
 )";
 }
@@ -125,22 +132,18 @@ void define_vars(std::ostream& stream, Environment& e, bool esc_str) {
 }
 
 void output_vars(std::ostream& stream, Environment& e) {
-
-  for (Type type : types) { 
+  for (Type type : types) {
     auto var_names = e.get_all_of_type(type);
     for (const std::string& var_name : var_names) {
-      switch(type) {
-        case Type::STRING: {
-          stream << "  printf(\"" << var_name << " = \");" << std::endl;
-          stream << "  printf(var_name);" << std::endl;
-          stream << "  printf(\\n);" << std::endl;
-          break;
-        }
-        default: {
-          stream << "  printf(\"" << var_name << " = " << get_print_parm(type) << "\\n\", " << var_name << ");" << std::endl;
-        }
-      }
+      stream << "  printf(\"" << var_name << " = " << get_print_parm(type) << "\\n\", " << var_name << ");" << std::endl;
     }
+  }
+}
+
+
+void output_vars(std::ostream& stream, std::list<std::pair<std::string, Type>>& vars) {
+  for (auto & pair : vars) {
+    stream << "  printf(\"" << pair.first << " = " << get_print_parm(pair.second) << "\\n\", " << pair.first << ");" << std::endl;
   }
 }
 

@@ -23,14 +23,15 @@
 
 void output_start_of_asm(std::ostream& stream);
 
-void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_names);
+void output_end_of_asm(std::ostream& stream, const std::list<std::pair<std::string, Type>>& var_names);
 
 std::string get_print_parm(Type type);
 
 void define_vars(std::ostream& stream, Environment& e, bool esc_str = false);
-void output_vars(std::ostream& stream, Environment& e);
-
 void define_vars(std::ostream& stream, std::list<std::string>& var_names, Type type);
+
+void output_vars(std::ostream& stream, Environment& e);
+void output_vars(std::ostream& stream, std::list<std::pair<std::string, Type>>& vars);
 
 bool is_digits(const std::string &str);
 
@@ -114,25 +115,71 @@ public:
                   stream << "  return " << lhs << ";" << std::endl;
                 } else if (op == "#") {
                   stream << "  " << name << " = " << "sizeof(" << lhs << ") / sizeof(" << lhs << "[0]);" << std::endl;
-                } else {  
+                } else if (op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=") {  
                   stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
-                }
-
-                return;
-                stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
-                stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
-                if (op == "c") {
-                  stream << "/* copy is a dummy operation */" << std::endl;
-                } else if (op == "+") {
-                  stream << "\" addq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
-                } else if (op == "*") {
-                  stream << "\" mulq \%\%rbx\\n\\t\"" << std::endl;
-                } else if (op == "==" || op == "!=") {
-                  stream << "\" subq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
                 } else {
-                  stream << "/* not implemented case Type::" << op << " */" << std::endl;
+
+                  bool double_op = op == "/" || l_type == Type::DOUBLE || r_type == Type::DOUBLE;
+                  std::set<std::pair<std::string, Type>> vars;
+                  vars.emplace(name, double_op ? Type::DOUBLE : Type::LONG);
+                  if (!is_digits(lhs)) vars.emplace(lhs, l_type);
+                  if (!is_digits(rhs)) vars.emplace(rhs, r_type);
+                  output_start_of_asm(stream);
+                    if (double_op) {
+                      if (l_type == Type::DOUBLE) {
+                        stream << "\" movsd " << format_value(lhs) << ", \%\%xmm0\\n\\t\"" << std::endl;                        
+                      } else {
+                        stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\" cvtsi2sdq \%\%rax, \%\%xmm0\\n\\t\"" << std::endl;
+                      }
+                      if (r_type == Type::DOUBLE) {
+                        stream << "\" movsd " << format_value(rhs) << ", \%\%xmm1\\n\\t\"" << std::endl;                        
+                      } else {
+                        stream << "\" movq " << format_value(rhs) << ", \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\" cvtsi2sdq \%\%rax, \%\%xmm1\\n\\t\"" << std::endl;
+                      }
+                      if (op == "c") {
+                        stream << "/* copy is a dummy operation */" << std::endl;
+                      } else if (op == "+") {
+                        stream << "\" addsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                      } else if (op == "-") {
+                        stream << "\" subsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                      } else if (op == "*") {
+                        stream << "\" mulsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                      } else if (op == "/") {
+                        stream << "\" divsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                      } else {
+                        stream << "/* not implemented case Type::" << op << " */" << std::endl;
+                      }
+                      stream << "\" movsd \%\%xmm0, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
+
+                    } else {
+                      stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
+                      stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
+                      if (op == "c") {
+                        stream << "/* copy is a dummy operation */" << std::endl;
+                      } else if (op == "+") {
+                        stream << "\" addq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
+                      } else if (op == "-") {
+                        stream << "\" subq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
+                      } else if (op == "*") {
+                        stream << "\" mul \%\%rbx\\n\\t\"" << std::endl;
+                      } else if (op == "/") {
+                        stream << "\" movq $0, \%\%rdx\\n\\t\"" << std::endl;
+                        stream << "\" div \%\%rbx\\n\\t\"" << std::endl;
+                      } else if (op == "%") {
+                        stream << "\" movq $0, \%\%rdx\\n\\t\"" << std::endl;
+                        stream << "\" div \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" movq \%\%rdx, \%\%rax\\n\\t\"" << std::endl;
+                      } else {
+                        stream << "/* not implemented case Type::" << op << " */" << std::endl;
+                      }
+                      stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
+                    }
+                  std::list<std::pair<std::string, Type>> vars_as_list(vars.begin(), vars.end());
+                  output_end_of_asm(stream, vars_as_list);
+                  //output_vars(stream, vars_as_list);
                 }
-                stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
         }
         std::string escape_quotes(const std::string& str) {
           std::string result = str;
