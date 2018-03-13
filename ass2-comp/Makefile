@@ -7,6 +7,6 @@ binary.tab.cc: binary.yy
 lex.yy.c: binary.ll binary.tab.cc
 	flex binary.ll
 target: target.cc
-	g++ -std=c++14 -g -otarget target.cc
+	gcc -g target.cc -lm -o target
 clean: 
 	rm -f binary.tab.* lex.yy.c* comp report.txt *.svg cfg.dot target*
