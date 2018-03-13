@@ -54,8 +54,9 @@ public:
           return "\%[" + str + "]";
         }
 
-        void dump(std::ostream& stream = std::cout, std::string esc_str = "")
+        void dump(std::ostream& stream = std::cout)
         {
+                std::string esc_str = "";
                 stream << "  /* Expand: " << name << " := ";
                 stream << lhs << " " << op << " " << rhs << " */" << std::endl;
                 if (op == "c") {
@@ -144,7 +145,67 @@ public:
         }
         void dumpCFG(std::ostream& stream = std::cout)
         {
-            dump(stream, "\\");
+                std::string esc_str = "\\";
+                stream << "  /* Expand: " << name << " := ";
+                stream << lhs << " " << op << " " << rhs << " */" << std::endl;
+                if (op == "c") {
+                  stream << "  " << name << " = " << lhs << ";" << std::endl;
+                } else if (op == "callE") {
+                  if (lhs == "io.read") {
+                    stream << "  if (scanf(" << esc_str << "\"%ld" << esc_str << "\", &"<< name << ") == EOF) exit(-1);" << std::endl;
+                  } else { // function call
+                    stream << "  " << (r_type != Type::UNDEFINED ? name + " = " : "") << lhs << "(";
+                    if (l_type != Type::UNDEFINED) {
+                      stream << rhs;
+                    }
+                    stream << ");" << std::endl;
+                  }
+                } else if (op == "callS") {
+                   if (lhs == "print" || lhs == "io.write") {
+                    stream << "  printf(" << esc_str << "\"";
+                    if (l_type != Type::UNDEFINED) {
+                      stream << get_print_parm(l_type);
+                      if (r_type != Type::UNDEFINED) {
+                        if (lhs == "print") stream << "\\t";
+                        stream << get_print_parm(r_type);
+                      }
+                      if (lhs == "print") stream << esc_str << "\\n";
+                      stream << esc_str << "\", " << rhs;
+                      if (r_type != Type::UNDEFINED) {
+                        stream << ", " << name;
+                      }
+                    } else {
+                      if (lhs == "print") stream << esc_str << "\\n";
+                      stream << esc_str << "\"";
+                    }
+                    stream << ");" << std::endl;
+                  } else { // function call
+                    stream << "  " << lhs << "(";
+                    if (l_type != Type::UNDEFINED) {
+                      stream << rhs;
+                      if (r_type != Type::UNDEFINED) {
+                        stream << ", " << name;
+                      }
+                    }
+                    stream << ");" << std::endl;
+                  }
+                } else if (op == "^") {
+                  stream << "  " << name << " = pow(" << lhs << ", " << rhs << ");" << std::endl;
+                } else if (op == "++") {
+                  stream << "  " << op << lhs << ";" << std::endl;
+                } else if (op == "c[]") {
+                  stream << "  " << name << " = " << lhs << "[" << rhs << " - 1];" << std::endl;
+                } else if (op == "[]c") {
+                  stream << "  " << name << "[" << rhs << " - 1] = " << lhs << ";" << std::endl;
+                } else if (op == "!") {
+                  stream << "  " << name << " = !" << lhs << ";" << std::endl;
+                } else if (op == "return") {
+                  stream << "  return " << lhs << ";" << std::endl;
+                } else if (op == "#") {
+                  stream << "  " << name << " = " << "sizeof(" << lhs << ") / sizeof(" << lhs << "[0]);" << std::endl;
+                } else {  
+                  stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
+                }
         }
 };
 
