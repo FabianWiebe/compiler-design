@@ -58,7 +58,7 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::pair<std::stri
   }
   stream << R"(
 :
-: "rax", "rbx", "rdx", "cc", "xmm0", "xmm1", "rdi", "rsi", "rsp"
+: "rax", "rbx", "rdx", "cc", "xmm0", "xmm1", "rdi", "rsi", "rsp", "rcx"
   );
 )";
 }

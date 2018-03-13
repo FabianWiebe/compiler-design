@@ -157,7 +157,7 @@ public:
                       if (ret_type != Type::ARRAY) stream << "\" movsd \%\%xmm0, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
 
                     } else {
-                      if (op != "c[]") stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
+                      stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
                       stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
                       if (op == "c") {
                         stream << "/* copy is a dummy operation */" << std::endl;
@@ -179,12 +179,15 @@ public:
                       } else if (op == "!") {
                         stream << "\" xorq $1, \%\%rax\\n\\t\"" << std::endl;
                       }  else if (op == "^") {
-                        stream << "\" movq " << format_value(rhs) << ", \%\%rdi\\n\\t\"" << std::endl;
-                        stream << "\" movq " << format_value(lhs) << ", \%\%rsi\\n\\t\"" << std::endl;
-                        stream << "\" movq $1, \%\%rax\\n\\t\"" << std::endl;
-                        stream << "\" subq $8, \%\%rsp\\n\\t\"" << std::endl;
+                        stream << "\" movq \%\%rax, \%\%rcx\\n\\t\"" << std::endl;
+                        stream << "\"pow_loop:\\n\\t\"" << std::endl;
+                        stream << "\" cmp $1, \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" jbe pow_cont\\n\\t\"" << std::endl;
+                        stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" mul \%\%rcx\\n\\t\"" << std::endl;
+                        stream << "\" jmp pow_loop\\n\\t\"" << std::endl;
                         //stream << "\" call pow\\n\\t\"" << std::endl;
-                        stream << "\" addq $8, \%\%rsp\\n\\t\"" << std::endl;
+                        stream << "\"pow_cont:\\n\\t\"" << std::endl;
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
