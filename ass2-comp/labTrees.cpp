@@ -32,7 +32,7 @@ std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool 
     second = Expression::makeNames(e, second_type);
   }
   //std::cout << "---<<<< " << name << "  " << first << " "<< type_as_string(first_type) << " " << second << " " << type_as_string(second_type) << std::endl;
-  out->instructions.emplace_back(second, std::string("call") + (is_expression ? "E" : "S"), name, first, first_type, second_type);
+  out->instructions.emplace_back(second, std::string("call") + (is_expression ? "E" : "S"), name, first, first_type, second_type, return_type);
   return {second, second_type};
 }
 
@@ -58,7 +58,7 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::pair<std::stri
   }
   stream << R"(
 :
-: "rax", "rbx", "rdx", "cc", "xmm0", "xmm1"
+: "rax", "rbx", "rdx", "cc", "xmm0", "xmm1", "rdi", "rsi", "rsp"
   );
 )";
 }

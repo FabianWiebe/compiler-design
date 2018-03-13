@@ -41,10 +41,10 @@ class ThreeAd
 {
 public:
         const std::string name, lhs, op, rhs;
-        const Type l_type, r_type;
+        const Type l_type, r_type, ret_type;
 
-        ThreeAd(const std::string& name, const std::string& op, const std::string& lhs, const std::string& rhs, const Type l_type, const Type r_type) :
-                name(name), op(op), lhs(lhs), rhs(rhs), l_type(l_type), r_type(r_type)
+        ThreeAd(const std::string& name, const std::string& op, const std::string& lhs, const std::string& rhs, const Type l_type, const Type r_type, const Type ret_type) :
+                name(name), op(op), lhs(lhs), rhs(rhs), l_type(l_type), r_type(r_type), ret_type(ret_type)
         {
         }
 
@@ -57,12 +57,11 @@ public:
 
         void dump(std::ostream& stream = std::cout)
         {
-                std::string esc_str = "";
                 stream << "  /* Expand: " << name << " := ";
                 stream << lhs << " " << op << " " << rhs << " */" << std::endl;
                 if (op == "callE") {
                   if (lhs == "io.read") {
-                    stream << "  if (scanf(" << esc_str << "\"%ld" << esc_str << "\", &"<< name << ") == EOF) exit(-1);" << std::endl;
+                    stream << "  if (scanf(\"%ld\", &"<< name << ") == EOF) exit(-1);" << std::endl;
                   } else { // function call
                     stream << "  " << (r_type != Type::UNDEFINED ? name + " = " : "") << lhs << "(";
                     if (l_type != Type::UNDEFINED) {
@@ -72,21 +71,21 @@ public:
                   }
                 } else if (op == "callS") {
                    if (lhs == "print" || lhs == "io.write") {
-                    stream << "  printf(" << esc_str << "\"";
+                    stream << "  printf(\"";
                     if (l_type != Type::UNDEFINED) {
                       stream << get_print_parm(l_type);
                       if (r_type != Type::UNDEFINED) {
                         if (lhs == "print") stream << "\\t";
                         stream << get_print_parm(r_type);
                       }
-                      if (lhs == "print") stream << esc_str << "\\n";
-                      stream << esc_str << "\", " << rhs;
+                      if (lhs == "print") stream << "\\n";
+                      stream << "\", " << rhs;
                       if (r_type != Type::UNDEFINED) {
                         stream << ", " << name;
                       }
                     } else {
-                      if (lhs == "print") stream << esc_str << "\\n";
-                      stream << esc_str << "\"";
+                      if (lhs == "print") stream << "\\n";
+                      stream << "\"";
                     }
                     stream << ");" << std::endl;
                   } else { // function call
@@ -99,12 +98,8 @@ public:
                     }
                     stream << ");" << std::endl;
                   }
-                } else if (op == "^") {
-                  stream << "  " << name << " = pow(" << lhs << ", " << rhs << ");" << std::endl;
-                } else if (op == "c[]") {
-                  stream << "  " << name << " = " << lhs << "[" << rhs << " - 1];" << std::endl;
-                } else if (op == "[]c") {
-                  stream << "  " << name << "[" << rhs << " - 1] = " << lhs << ";" << std::endl;
+                //} else if (op == "c[]") {
+                  //stream << "  " << name << " = " << lhs << "[" << rhs << " - 1];" << std::endl;
                 } else if (op == "return") {
                   stream << "  return " << lhs << ";" << std::endl;
                 } else if (op == "#") {
@@ -113,24 +108,24 @@ public:
                   stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 } else {
 
-                  bool double_op = op == "/" || l_type == Type::DOUBLE || r_type == Type::DOUBLE;
+                  bool double_op = op == "/" || l_type == Type::DOUBLE || r_type == Type::DOUBLE || ret_type == Type::DOUBLE;
                   std::set<std::pair<std::string, Type>> vars;
-                  vars.emplace(name, double_op ? Type::DOUBLE : Type::LONG);
+                  vars.emplace(name, ret_type);
                   if (!is_digits(lhs)) vars.emplace(lhs, l_type);
                   if (!is_digits(rhs)) vars.emplace(rhs, r_type);
                   output_start_of_asm(stream);
                     if (double_op) {
                       if (l_type == Type::DOUBLE) {
                         stream << "\" movsd " << format_value(lhs) << ", \%\%xmm0\\n\\t\"" << std::endl;                        
-                      } else {
+                      } else if (l_type == Type::LONG) {
                         stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
                         stream << "\" cvtsi2sdq \%\%rax, \%\%xmm0\\n\\t\"" << std::endl;
                       }
                       if (r_type == Type::DOUBLE) {
                         stream << "\" movsd " << format_value(rhs) << ", \%\%xmm1\\n\\t\"" << std::endl;                        
-                      } else {
-                        stream << "\" movq " << format_value(rhs) << ", \%\%rax\\n\\t\"" << std::endl;
-                        stream << "\" cvtsi2sdq \%\%rax, \%\%xmm1\\n\\t\"" << std::endl;
+                      } else if (r_type == Type::LONG) {
+                        stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" cvtsi2sdq \%\%rbx, \%\%xmm1\\n\\t\"" << std::endl;
                       }
                       if (op == "c") {
                         stream << "/* copy is a dummy operation */" << std::endl;
@@ -142,13 +137,27 @@ public:
                         stream << "\" mulsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
                       } else if (op == "/") {
                         stream << "\" divsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                      } else if (op == "c[]") {
+                        // name = lhs [rhs]
+                        stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" movq $8, \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\" mul \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" lea " << format_value(lhs) << ", \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" movsd (\%\%rax, \%\%rbx), \%\%xmm0\\n\\t\"" << std::endl;
+                      } else if (op == "[]c") {
+                        // name [rhs] = lhs
+                        stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" movq $8, \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\" mul \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" lea " << format_value(name) << ", \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\" movsd \%\%xmm0, (\%\%rax, \%\%rbx)\\n\\t\"" << std::endl;
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
-                      stream << "\" movsd \%\%xmm0, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
+                      if (ret_type != Type::ARRAY) stream << "\" movsd \%\%xmm0, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
 
                     } else {
-                      stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
+                      if (op != "c[]") stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
                       stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
                       if (op == "c") {
                         stream << "/* copy is a dummy operation */" << std::endl;
@@ -169,6 +178,13 @@ public:
                         stream << "\" inc \%\%rax\\n\\t\"" << std::endl;
                       } else if (op == "!") {
                         stream << "\" xorq $1, \%\%rax\\n\\t\"" << std::endl;
+                      }  else if (op == "^") {
+                        stream << "\" movq " << format_value(rhs) << ", \%\%rdi\\n\\t\"" << std::endl;
+                        stream << "\" movq " << format_value(lhs) << ", \%\%rsi\\n\\t\"" << std::endl;
+                        stream << "\" movq $1, \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\" subq $8, \%\%rsp\\n\\t\"" << std::endl;
+                        //stream << "\" call pow\\n\\t\"" << std::endl;
+                        stream << "\" addq $8, \%\%rsp\\n\\t\"" << std::endl;
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
@@ -374,7 +390,7 @@ public:
           std::tie(right, right_type) = rhs->convert(e, out);
           Type type = left_type == Type::LONG && right_type == Type::LONG && name != "/" ? Type::LONG : Type::DOUBLE;
           auto gen_name = makeNames(e, type);
-          out->instructions.emplace_back(gen_name, name, left, right, left_type, right_type);
+          out->instructions.emplace_back(gen_name, name, left, right, left_type, right_type, type);
           return {gen_name, type};
         }
 
@@ -412,7 +428,7 @@ public:
           std::tie(name, type) = value->convert(e, out);
           e.set(var_name, type);
           if (type != Type::ARRAY) {
-            out->instructions.emplace_back(var_name, "c", name, name, type, type);
+            out->instructions.emplace_back(var_name, "c", name, name, type, type, type);
           } else {
             e.update_name(name, var_name);
           }
@@ -434,7 +450,7 @@ public:
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
           std::string name = makeNames(e, Type::LONG);
-          out->instructions.emplace_back(name, "#", array_name, array_name, Type::ARRAY, Type::ARRAY);
+          out->instructions.emplace_back(name, "#", array_name, array_name, Type::ARRAY, Type::ARRAY, Type::LONG);
           return {name, Type::LONG};
         }
 
@@ -458,14 +474,14 @@ public:
         {
           std::string name = makeNames(e, Type::DOUBLE);
           std::string pos_name = position->convert(e, out).first;
-          out->instructions.emplace_back(name, "c[]", array_name, pos_name, Type::DOUBLE, Type::LONG);
+          out->instructions.emplace_back(name, "c[]", array_name, pos_name, Type::ARRAY, Type::LONG, Type::DOUBLE);
           return {name, Type::DOUBLE};
         }
 
         virtual void assign(Environment & e, BBlock* out, Expression* value) {
           std::string value_name = value->convert(e, out).first;
           std::string pos_name = position->convert(e, out).first;
-          out->instructions.emplace_back(array_name, "[]c", value_name, pos_name, Type::DOUBLE, Type::LONG);
+          out->instructions.emplace_back(array_name, "[]c", value_name, pos_name, Type::DOUBLE, Type::LONG, Type::ARRAY);
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -488,7 +504,7 @@ public:
         {
           std::string name = makeNames(e, Type::LONG);
           std::string bool_name = bool_value->convert(e, out).first;
-          out->instructions.emplace_back(name, "!", bool_name, bool_name, Type::LONG, Type::LONG);
+          out->instructions.emplace_back(name, "!", bool_name, bool_name, Type::LONG, Type::LONG, Type::LONG);
           return {name, Type::LONG};
         }
 
@@ -585,8 +601,20 @@ public:
           Type left_type, right_type;
           std::tie(left, left_type) = lhs->convert(e, out);
           std::tie(right, right_type) = rhs->convert(e, out);
-          out->instructions.emplace_back(gen_name, name, left, right, left_type, right_type);
-          out->cond_jump = name == "==" ? "jz" : "jnz";
+          out->instructions.emplace_back(gen_name, name, left, right, left_type, right_type, Type::LONG);
+          if (name == "==") {
+            out->cond_jump = "je";
+          } else if (name == "!=") {
+            out->cond_jump = "jne";
+          } else if (name == "<") {
+            out->cond_jump = "jl";
+          } else if (name == ">") {
+            out->cond_jump = "ja";
+          } else if (name == "<=") {
+            out->cond_jump = "jbe";
+          } else if (name == ">=") {
+            out->cond_jump = "jae";
+          } 
           return {gen_name, Type::LONG};
         }
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -737,7 +765,7 @@ public:
 
         BBlock* convert(Environment& e, BBlock* out)
         {
-          out->instructions.emplace_back(var_name, name, var_name, var_name, Type::LONG, Type::LONG);
+          out->instructions.emplace_back(var_name, name, var_name, var_name, Type::LONG, Type::LONG, Type::LONG);
           return out;
         }
 
@@ -858,7 +886,7 @@ public:
           Type type;
           std::tie(name, type) = expression->convert(e, out);
           e.set_return_type(type);
-          out->instructions.emplace_back("", "return", name, name, type, type);
+          out->instructions.emplace_back(name, "return", name, name, type, type, type);
           return out;
         }
         void dump(std::ostream& stream=std::cout, int depth = 0) {
