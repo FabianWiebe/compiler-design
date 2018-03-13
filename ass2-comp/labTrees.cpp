@@ -86,7 +86,17 @@ std::string type_to_string(Type type, std::string name) {
     }
 }
 
-void define_vars(std::ostream& stream, Environment& e, std::string quotation) {
+std::string escape_new_lines(const std::string& str) {
+  std::string result = str;
+  size_t pos = 0;
+  while ((pos = result.find("\\n", pos)) != std::string::npos) {
+      result.insert(pos, "\\");
+      pos += 3;
+  }
+  return result;
+}
+
+void define_vars(std::ostream& stream, Environment& e, bool esc_str) {
   for (Type type : types) {
     auto var_names = e.get_all_of_type(type);
     if (!var_names.empty()) {
@@ -100,8 +110,17 @@ void define_vars(std::ostream& stream, Environment& e, std::string quotation) {
   }
   for (auto& pair : e.get_const_values()) {
     Type type = pair.second.type;
-    std::string str = type == Type::STRING ? quotation : "";
-    stream << type_to_string(type, pair.first) << " = " << str << pair.second << str << ";" << std::endl;
+    stream << type_to_string(type, pair.first) << " = ";
+    if (type == Type::STRING) {
+      if (esc_str) {
+        stream << "\\\"" << escape_new_lines(pair.second.as_string()) << "\\\"";
+      } else {
+        stream << "\"" << pair.second << "\"";
+      }
+    } else {
+      stream << pair.second;
+    }
+    stream << ";" << std::endl;
   }
 }
 
@@ -319,7 +338,7 @@ void dumpCFG(Environment& e, BBlock *start, std::ostream& stream)
         stream << "digraph {" << std::endl;
 
         stream << "declaration_block [shape=box, label=\"";
-        define_vars(stream, e, "\\\"");
+        define_vars(stream, e, true);
         stream << "\"];" << std::endl;
         stream << "declaration_block -> " << start->name << ";" << std::endl;
 

@@ -27,7 +27,7 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_n
 
 std::string get_print_parm(Type type);
 
-void define_vars(std::ostream& stream, Environment& e, std::string quotation = "\"");
+void define_vars(std::ostream& stream, Environment& e, bool esc_str = false);
 void output_vars(std::ostream& stream, Environment& e);
 
 void define_vars(std::ostream& stream, std::list<std::string>& var_names, Type type);
