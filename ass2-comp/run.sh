@@ -1,6 +1,6 @@
 #!/bin/bash
 make
-for i in `seq 1 7`;
+for i in `seq 6 6`;
 do
 	echo "test case $i:"
 	./comp test_case_$i.lua

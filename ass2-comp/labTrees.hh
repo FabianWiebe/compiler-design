@@ -27,7 +27,7 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::string>& var_n
 
 std::string get_print_parm(Type type);
 
-void define_vars(std::ostream& stream, Environment& e);
+void define_vars(std::ostream& stream, Environment& e, std::string quotation = "\"");
 void output_vars(std::ostream& stream, Environment& e);
 
 void define_vars(std::ostream& stream, std::list<std::string>& var_names, Type type);
@@ -828,6 +828,6 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream = std::cout);
  * exactly once, so that we can dump out the entire graph.
  * This is a concrete example of the graph-walk described in lecture 7.
  */
-void dumpCFG(BBlock *start, std::ostream& stream = std::cout);
+void dumpCFG(Environment& e, BBlock *start, std::ostream& stream = std::cout);
 
 #endif

@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 
 		std::ofstream parse_tree_file;
 		parse_tree_file.open("cfg.dot");
-		dumpCFG(first_block, parse_tree_file);
+		dumpCFG(env, first_block, parse_tree_file);
 		parse_tree_file.close();
 		
 		//std::cout << e;

@@ -86,7 +86,7 @@ std::string type_to_string(Type type, std::string name) {
     }
 }
 
-void define_vars(std::ostream& stream, Environment& e) {
+void define_vars(std::ostream& stream, Environment& e, std::string quotation) {
   for (Type type : types) {
     auto var_names = e.get_all_of_type(type);
     if (!var_names.empty()) {
@@ -100,7 +100,7 @@ void define_vars(std::ostream& stream, Environment& e) {
   }
   for (auto& pair : e.get_const_values()) {
     Type type = pair.second.type;
-    std::string str = type == Type::STRING ? "\"" : "";
+    std::string str = type == Type::STRING ? quotation : "";
     stream << type_to_string(type, pair.first) << " = " << str << pair.second << str << ";" << std::endl;
   }
 }
@@ -244,7 +244,7 @@ Statement *test3 = new Seq({
                           new Var("y")})
 });
 
-void dump_blocks(BBlock *start, std::ostream& stream) {
+void dump_blocks(BBlock *start, std::ostream& stream, void (BBlock::*func)(std::ostream&)) {
   std::set<BBlock *> done, todo;
   todo.insert(start);
   while(todo.size()>0)
@@ -253,7 +253,7 @@ void dump_blocks(BBlock *start, std::ostream& stream) {
           auto first = todo.begin();
           BBlock *next = *first;
           todo.erase(first);
-          next->dump(stream);
+          (next->*func)(stream);
           stream << std::endl;
           done.insert(next);
           if(next->tExit!=NULL && done.find(next->tExit)==done.end())
@@ -290,7 +290,7 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
                 stream << ", " << type_to_string(*type_itr, *name_itr);
               }
               stream << ") {" << std::endl;
-                dump_blocks(func->first_block, stream);
+                dump_blocks(func->first_block, stream, &BBlock::dump);
               stream << "}" << std::endl;
             }
           }
@@ -302,7 +302,7 @@ int main(int argc, char **argv)
 )";
         //output_start_of_asm(stream);
 
-        dump_blocks(start, stream);        
+        dump_blocks(start, stream, &BBlock::dump);        
 
         //output_end_of_asm(stream, vars);
         //output_vars(stream, e);
@@ -314,23 +314,35 @@ int main(int argc, char **argv)
  * exactly once, so that we can dump out the entire graph.
  * This is a concrete example of the graph-walk described in lecture 7.
  */
-void dumpCFG(BBlock *start, std::ostream& stream)
+void dumpCFG(Environment& e, BBlock *start, std::ostream& stream)
 {
         stream << "digraph {" << std::endl;
-        std::set<BBlock *> done, todo;
-        todo.insert(start);
-        while(todo.size()>0)
-        {
-                // Pop an arbitrary element from todo set
-                auto first = todo.begin();
-                BBlock *next = *first;
-                todo.erase(first);
-                next->dumpCFG(stream);
-                done.insert(next);
-                if(next->tExit!=NULL && done.find(next->tExit)==done.end())
-                        todo.insert(next->tExit);
-                if(next->fExit!=NULL && done.find(next->fExit)==done.end())
-                        todo.insert(next->fExit);
+
+        stream << "declaration_block [shape=box, label=\"";
+        define_vars(stream, e, "\\\"");
+        stream << "\"];" << std::endl;
+        stream << "declaration_block -> " << start->name << ";" << std::endl;
+
+        dump_blocks(start, stream, &BBlock::dumpCFG);
+
+        for (auto & pair : e.get_functions()) {
+          Function* func = pair.second;
+          if (func->first_block) {
+            stream << func->name << "_block [label=\"";
+            stream << type_as_string(func->return_type) << " " << func->name << "(";
+            if (!func->parameter_types.empty()) {
+              auto type_itr = func->parameter_types.begin();
+              auto name_itr = func->parameter_names.begin();
+              stream << type_to_string(*type_itr, *name_itr);
+              for(++type_itr, ++name_itr; type_itr != func->parameter_types.end(); ++type_itr, ++name_itr) {
+                stream << ", " << type_to_string(*type_itr, *name_itr);
+              }
+              stream << ")\"]" << std::endl;
+              stream << func->name << "_block -> " << func->first_block->name << ";" << std::endl;
+              dump_blocks(func->first_block, stream, &BBlock::dumpCFG);
+            }
+          }
         }
+
         stream << "}" << std::endl;
 }
