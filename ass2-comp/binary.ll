@@ -53,7 +53,7 @@ function							{ return yy::parser::make_FUNCTION(yytext); }
 										const Constant* const_ptr = new Constant(value);
 										return yy::parser::make_VALUE(const_ptr); }
 "true"|"false"						{ std::string text(yytext);
-										const bool value = text == "true";
+										const long value = text == "true" ? 1 : 0;
 										const Constant* const_ptr = new Constant(value);
 										return yy::parser::make_VALUE(const_ptr); }
 {NOT_SPECIAL}+						{ return yy::parser::make_WORD(yytext); }

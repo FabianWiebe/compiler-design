@@ -60,9 +60,7 @@ public:
                 std::string esc_str = "";
                 stream << "  /* Expand: " << name << " := ";
                 stream << lhs << " " << op << " " << rhs << " */" << std::endl;
-                if (op == "c") {
-                  stream << "  " << name << " = " << lhs << ";" << std::endl;
-                } else if (op == "callE") {
+                if (op == "callE") {
                   if (lhs == "io.read") {
                     stream << "  if (scanf(" << esc_str << "\"%ld" << esc_str << "\", &"<< name << ") == EOF) exit(-1);" << std::endl;
                   } else { // function call
@@ -103,14 +101,10 @@ public:
                   }
                 } else if (op == "^") {
                   stream << "  " << name << " = pow(" << lhs << ", " << rhs << ");" << std::endl;
-                } else if (op == "++") {
-                  stream << "  " << op << lhs << ";" << std::endl;
                 } else if (op == "c[]") {
                   stream << "  " << name << " = " << lhs << "[" << rhs << " - 1];" << std::endl;
                 } else if (op == "[]c") {
                   stream << "  " << name << "[" << rhs << " - 1] = " << lhs << ";" << std::endl;
-                } else if (op == "!") {
-                  stream << "  " << name << " = !" << lhs << ";" << std::endl;
                 } else if (op == "return") {
                   stream << "  return " << lhs << ";" << std::endl;
                 } else if (op == "#") {
@@ -171,6 +165,10 @@ public:
                         stream << "\" movq $0, \%\%rdx\\n\\t\"" << std::endl;
                         stream << "\" div \%\%rbx\\n\\t\"" << std::endl;
                         stream << "\" movq \%\%rdx, \%\%rax\\n\\t\"" << std::endl;
+                      } else if (op == "++") {
+                        stream << "\" inc \%\%rax\\n\\t\"" << std::endl;
+                      } else if (op == "!") {
+                        stream << "\" xorq $1, \%\%rax\\n\\t\"" << std::endl;
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
@@ -488,10 +486,10 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          std::string name = makeNames(e, Type::BOOL);
+          std::string name = makeNames(e, Type::LONG);
           std::string bool_name = bool_value->convert(e, out).first;
-          out->instructions.emplace_back(name, "!", bool_name, bool_name, Type::BOOL, Type::BOOL);
-          return {name, Type::BOOL};
+          out->instructions.emplace_back(name, "!", bool_name, bool_name, Type::LONG, Type::LONG);
+          return {name, Type::LONG};
         }
 
         void dump(std::ostream& stream=std::cout, int depth = 0) {
@@ -582,14 +580,14 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          auto gen_name = makeNames(e, Type::BOOL);
+          auto gen_name = makeNames(e, Type::LONG);
           std::string left, right;
           Type left_type, right_type;
           std::tie(left, left_type) = lhs->convert(e, out);
           std::tie(right, right_type) = rhs->convert(e, out);
           out->instructions.emplace_back(gen_name, name, left, right, left_type, right_type);
           out->cond_jump = name == "==" ? "jz" : "jnz";
-          return {gen_name, Type::BOOL};
+          return {gen_name, Type::LONG};
         }
         void dump(std::ostream& stream=std::cout, int depth = 0) {
           indent(stream, depth) << name << std::endl;
