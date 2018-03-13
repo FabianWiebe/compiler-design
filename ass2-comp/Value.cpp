@@ -5,7 +5,6 @@
 
 // cannot be defined in header due to linker issues
 std::ostream& ArrayContainer::to_stream(std::ostream& stream) const {
-	stream << "{";
 	if (!value.empty()) {
 		auto itr = value.begin();
 		stream << *itr;
@@ -13,7 +12,6 @@ std::ostream& ArrayContainer::to_stream(std::ostream& stream) const {
 			stream << ", " << *itr;
 		}
 	}
-	stream << "}";
 	return stream;
 }
 

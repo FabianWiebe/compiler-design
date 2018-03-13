@@ -124,6 +124,8 @@ void define_vars(std::ostream& stream, Environment& e, bool esc_str) {
       } else {
         stream << "\"" << pair.second << "\"";
       }
+    } else if (type == Type::ARRAY) {
+      stream << "{" << pair.second.as_array().size() << ", " << pair.second << "}";
     } else {
       stream << pair.second;
     }

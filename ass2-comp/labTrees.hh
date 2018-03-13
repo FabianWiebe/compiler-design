@@ -98,12 +98,8 @@ public:
                     }
                     stream << ");" << std::endl;
                   }
-                //} else if (op == "c[]") {
-                  //stream << "  " << name << " = " << lhs << "[" << rhs << " - 1];" << std::endl;
                 } else if (op == "return") {
                   stream << "  return " << lhs << ";" << std::endl;
-                } else if (op == "#") {
-                  stream << "  " << name << " = " << "sizeof(" << lhs << ") / sizeof(" << lhs << "[0]);" << std::endl;
                 } else if (op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=") {  
                   stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 } else {
@@ -139,14 +135,14 @@ public:
                         stream << "\" divsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
                       } else if (op == "c[]") {
                         // name = lhs [rhs]
-                        stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
+                        //stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
                         stream << "\" movq $8, \%\%rax\\n\\t\"" << std::endl;
                         stream << "\" mul \%\%rbx\\n\\t\"" << std::endl;
                         stream << "\" lea " << format_value(lhs) << ", \%\%rbx\\n\\t\"" << std::endl;
                         stream << "\" movsd (\%\%rax, \%\%rbx), \%\%xmm0\\n\\t\"" << std::endl;
                       } else if (op == "[]c") {
                         // name [rhs] = lhs
-                        stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
+                        //stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
                         stream << "\" movq $8, \%\%rax\\n\\t\"" << std::endl;
                         stream << "\" mul \%\%rbx\\n\\t\"" << std::endl;
                         stream << "\" lea " << format_value(name) << ", \%\%rbx\\n\\t\"" << std::endl;
@@ -154,11 +150,11 @@ public:
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
-                      if (ret_type != Type::ARRAY) stream << "\" movsd \%\%xmm0, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
+                      if (ret_type != Type::ARRAY) stream << "\" movsd \%\%xmm0, " << format_value(name) << "\\n\\t\"" << std::endl;
 
                     } else {
-                      stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
-                      stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
+                      if (l_type != Type::ARRAY) stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
+                      if (r_type != Type::ARRAY) stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
                       if (op == "c") {
                         stream << "/* copy is a dummy operation */" << std::endl;
                       } else if (op == "+") {
@@ -188,6 +184,9 @@ public:
                         stream << "\" jmp pow_loop\\n\\t\"" << std::endl;
                         //stream << "\" call pow\\n\\t\"" << std::endl;
                         stream << "\"pow_cont:\\n\\t\"" << std::endl;
+                      } else if (op == "#") {
+                        stream << "\" movsd " << format_value(lhs) << ", \%\%xmm0\\n\\t\"" << std::endl;
+                        stream << "\" cvttsd2siq \%\%xmm0, \%\%rax\\n\\t\"" << std::endl;
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
