@@ -77,7 +77,7 @@ public:
 		if (!function_parms.empty()) {
 			auto & parms = function_parms.top();
 			auto fp_it = parms.find(name);
-			if (fp_it == parms.end()) {
+			if (fp_it != parms.end()) {
 				return fp_it->second;
 			}
 		}

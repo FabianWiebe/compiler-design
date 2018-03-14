@@ -1,5 +1,16 @@
 #include "labTrees.hh"
 
+std::string combine(const std::list<std::string>& list, const std::string& delimeter) {
+  if (list.empty()) return "";
+  auto itr = list.begin();
+  std::string str = *itr;
+  for(++itr; itr != list.end(); ++itr) {
+    str += delimeter + *itr;
+  }
+  return str;
+}
+
+
 std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool is_expression) {
   std::list<std::string> values;
   std::list<Type> types;
@@ -10,8 +21,8 @@ std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool 
     values.push_back(value);
     types.push_back(type);
   }
-  std::string first = "", second = "";
-  Type first_type = Type::UNDEFINED, second_type = Type::UNDEFINED;
+  std::string return_name = "", first = "", second = "";
+  Type first_type = Type::UNDEFINED, second_type = Type::UNDEFINED, return_type = Type::VOID;
   auto itr = values.begin();
   auto t_itr = types.begin();
   if (itr != values.end()) {
@@ -22,18 +33,20 @@ std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool 
       second_type = *++t_itr;
     }
   }
-  Type return_type = Type::LONG;
   if (name != "io.read" && name != "io.write" && name != "print") {
     return_type = e.get_function(name)->dump_function(e, types);
+  } else if (name == "io.read") {
+    return_type = Type::LONG;
   }
   if (is_expression) {
+    if (return_type == Type::VOID) {
+      throw std::invalid_argument( std::string("Void function ") + name +  " has no return argument." );
+    }
     // use return value
-    second_type = return_type;
-    second = Expression::makeNames(e, second_type);
+    return_name = Expression::makeNames(e, return_type);
   }
-  //std::cout << "---<<<< " << name << "  " << first << " "<< type_as_string(first_type) << " " << second << " " << type_as_string(second_type) << std::endl;
-  out->instructions.emplace_back(second, std::string("call") + (is_expression ? "E" : "S"), name, first, first_type, second_type, return_type);
-  return {second, second_type};
+  out->instructions.emplace_back(return_name, "call", name, first, first_type, second_type, return_type, values, types);
+  return {return_name, return_type};
 }
 
 void output_start_of_asm(std::ostream& stream) {
@@ -78,7 +91,7 @@ std::string get_print_parm(Type type) {
         return "%s";
       }
     }
-    return "";
+    throw std::invalid_argument( std::string("Cannot print type ") + type_as_string(type) );
 }
 
 std::list<Type> types{Type::LONG, Type::DOUBLE, Type::BOOL, Type::STRING};
