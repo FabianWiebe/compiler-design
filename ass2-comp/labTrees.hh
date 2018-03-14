@@ -46,11 +46,13 @@ public:
         const Type l_type, r_type, ret_type;
         const std::list<std::string> function_parameter_values;
         const std::list<Type> function_parameter_types;
+        const std::list<std::pair<std::string, Type>> parms_for_stack;
 
         ThreeAd(const std::string& name, const std::string& op, const std::string& lhs, const std::string& rhs, const Type l_type, const Type r_type, const Type ret_type,
-                const std::list<std::string>& function_parameter_values = std::list<std::string>(), const std::list<Type>& function_parameter_types = std::list<Type>()) :
+                const std::list<std::string>& function_parameter_values = std::list<std::string>(), const std::list<Type>& function_parameter_types = std::list<Type>(),
+                const std::list<std::pair<std::string, Type>>& parms_for_stack = std::list<std::pair<std::string, Type>>()) :
                 name(name), op(op), lhs(lhs), rhs(rhs), l_type(l_type), r_type(r_type), ret_type(ret_type),
-                function_parameter_values(function_parameter_values), function_parameter_types(function_parameter_types) {}
+                function_parameter_values(function_parameter_values), function_parameter_types(function_parameter_types), parms_for_stack(parms_for_stack) {}
 
         std::string format_value(const std::string& str) {
           if (is_digits(str)) {
@@ -84,6 +86,13 @@ public:
                     parms.push_front(std::string("\"") + combine(formatted_types, delimeter) + end_line + "\"");
                     stream << "  printf(" << combine(parms, ", ") << ");" << std::endl;
                   } else { // function call
+                    if (!parms_for_stack.empty()) {
+                      stream << "  /* pushing function variables to stack: ";
+                      for (auto & pair : parms_for_stack) {
+                        stream << type_as_string(pair.second) << " " << pair.first << ", ";
+                      }
+                      stream << "*/" << std::endl;
+                    }
                     std::string save_return = "";
                     if (ret_type != Type::VOID) save_return = name + " = ";
                     stream << "  " << save_return << lhs << "(" << combine(function_parameter_values, ", ") << ");" << std::endl;
@@ -223,6 +232,13 @@ public:
                     parms.push_front(std::string("\\\"") + combine(formatted_types, delimeter) + end_line + "\\\"");
                     stream << "  printf(" << combine(parms, ", ") << ");" << std::endl;
                   } else { // function call
+                    if (!parms_for_stack.empty()) {
+                      stream << "  /* pushing function variables to stack: ";
+                      for (auto & pair : parms_for_stack) {
+                        stream << type_as_string(pair.second) << " " << pair.first << ", ";
+                      }
+                      stream << "*/" << std::endl;
+                    }
                     std::string save_return = "";
                     if (ret_type != Type::VOID) save_return = name + " = ";
                     stream << "  " << save_return << lhs << "(" << combine(function_parameter_values, ", ") << ");" << std::endl;
@@ -813,7 +829,7 @@ public:
           parameter_types = types;
           first_block = new BBlock();
           BBlock* return_block = new BBlock();
-          e.new_context(return_block);
+          e.new_context(return_block, name);
           auto type_itr = types.begin();
           for (auto& name : parameter_names) {
             e.set_function_parm(name, *type_itr++);

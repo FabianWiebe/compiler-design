@@ -15,7 +15,9 @@ public:
 	Environment() {
 		stack.emplace();
 	}
-	void new_context(BBlock* return_block) {
+	void new_context(BBlock* return_block, const std::string& function_name) {
+		function_vars.insert(std::make_pair(function_name, std::map<std::string, Type>()));
+		current_function.push_back(function_name);
 		//stack.emplace();
 		return_blocks.push(return_block);
 		return_types.emplace();
@@ -32,6 +34,7 @@ public:
 		return return_types.top();
 	}
 	Type clear_context() {
+		current_function.pop_back();
 		//stack.pop();
 		return_blocks.pop();
 		Type type = return_types.top();
@@ -39,7 +42,14 @@ public:
 		function_parms.pop();
 		return type;
 	}
+	bool recursive_call(const std::string& function_name) {
+		for (auto & str : current_function) {
+			if (str == function_name) return true;
+		}
+		return false;
+	}
 	void set(std::string& name, Type type) {
+		insert_into_function_vars(name, type);
 		auto & mapping = stack.top();
 		auto it = mapping.find(name);
 		if (it != mapping.end()) {
@@ -49,6 +59,7 @@ public:
 		}
 	}
 	void set_function_parm(std::string& name, Type type) {
+		insert_into_function_vars(name, type);
 		auto & parms = function_parms.top();
 		auto it = parms.find(name);
 		if (it != parms.end()) {
@@ -122,11 +133,24 @@ public:
 		return functions;
 	}
 
+	std::list<std::pair<std::string, Type>> get_function_vars(const std::string& function_name) {
+		auto it = function_vars.find(function_name);
+		if (it == function_vars.end()) {
+			throw std::invalid_argument( "Function name \"" + function_name + "\" not found" );
+		}
+		auto& m = it->second;
+		std::list<std::pair<std::string, Type>> l;
+		for (auto& pair : m) {
+			l.emplace_back(pair.first, pair.second);
+		}
+		return l;
+	}
+
 	friend std::ostream& operator<< (std::ostream& stream, const Environment& env) {
 		auto & mapping = env.stack.top();
 		stream << "Current context: (Size: " << mapping.size() << ")" << std::endl;
 		for (auto & pair : mapping) {
-			
+			// to do
 		}
 		return stream;
 	}
@@ -134,12 +158,27 @@ public:
 		return const_values;
 	}
 private:
+	void insert_into_function_vars(const std::string& name, Type type) {
+		// store variables for function, needed if function is called recursively
+		if (current_function.empty()) return;
+		std::string& func_name = current_function.back();
+
+		auto it = function_vars.find(func_name);
+		if (it != function_vars.end()) {
+			it->second.insert(std::make_pair(name, type));
+		} else {
+			throw std::invalid_argument( "Function name \"" + func_name + "\" not found" );
+		}
+	}
+
 	std::stack<std::map<std::string, Type>> stack;
 	std::stack<std::map<std::string, Type>> function_parms;
 	std::stack<BBlock*> return_blocks;
 	std::stack<Type> return_types;
 	std::map<std::string, Value> const_values;
 	std::map<std::string, Function*> functions;
+	std::list<std::string> current_function;
+	std::map<std::string, std::map<std::string, Type>> function_vars;
 };
 
 #endif

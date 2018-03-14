@@ -45,7 +45,11 @@ std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool 
     // use return value
     return_name = Expression::makeNames(e, return_type);
   }
-  out->instructions.emplace_back(return_name, "call", name, first, first_type, second_type, return_type, values, types);
+  std::list<std::pair<std::string, Type>> parms_for_stack;
+  if (e.recursive_call(name)) {
+    parms_for_stack = e.get_function_vars(name);
+  }
+  out->instructions.emplace_back(return_name, "call", name, first, first_type, second_type, return_type, values, types, parms_for_stack);
   return {return_name, return_type};
 }
 
