@@ -6,6 +6,7 @@ do
 	./comp test_case_$i.lua
 	make target
 	echo "10" | ./target
+	#echo "10" | lua5.3 test_case_$i.lua
 	dot cfg.dot -Ocfg$i.svg -Tsvg
 	echo ""
 done

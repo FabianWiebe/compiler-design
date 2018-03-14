@@ -232,9 +232,9 @@ public:
                 } else if (op == "++") {
                   stream << "  " << op << lhs << ";" << std::endl;
                 } else if (op == "c[]") {
-                  stream << "  " << name << " = " << lhs << "[" << rhs << " - 1];" << std::endl;
+                  stream << "  " << name << " = " << lhs << "[" << rhs << "];" << std::endl;
                 } else if (op == "[]c") {
-                  stream << "  " << name << "[" << rhs << " - 1] = " << lhs << ";" << std::endl;
+                  stream << "  " << name << "[" << rhs << "] = " << lhs << ";" << std::endl;
                 } else if (op == "!") {
                   stream << "  " << name << " = !" << lhs << ";" << std::endl;
                 } else if (op == "return") {
