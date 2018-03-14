@@ -265,7 +265,7 @@ public:
                 } else if (op == "return") {
                   stream << "  return " << lhs << ";" << std::endl;
                 } else if (op == "#") {
-                  stream << "  " << name << " = " << "sizeof(" << lhs << ") / sizeof(" << lhs << "[0]);" << std::endl;
+                  stream << "  " << name << " = (long) " << lhs << "[0];" << std::endl;
                 } else {  
                   stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 }
