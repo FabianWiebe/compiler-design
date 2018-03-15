@@ -197,15 +197,9 @@ public:
                       } else if (op == "!") {
                         stream << "\t\txorq $1, %rax" << std::endl;
                       }  else if (op == "^") {
-                        stream << "\t\tmovq %rax, %rcx" << std::endl;
-                        stream << "pow_loop:" << std::endl;
-                        stream << "\t\tcmp $1, %rbx" << std::endl;
-                        stream << "\t\tjbe pow_cont" << std::endl;
-                        stream << "\t\tdec %rbx" << std::endl;
-                        stream << "\t\tmul %rcx" << std::endl;
-                        stream << "\t\tjmp pow_loop" << std::endl;
-                        //stream << "\t\tcall pow" << std::endl;
-                        stream << "pow_cont:" << std::endl;
+                        stream << "\t\tmovq %rax, %rdi" << std::endl;
+                        stream << "\t\tmovq %rbx, %rsi" << std::endl;
+                        stream << "\t\tcall pow" << std::endl;
                       } else if (op == "#") {
                         stream << "\t\tmovq " << lhs << ", %rax" << std::endl;
                       } else if (is_comp) {  
@@ -374,6 +368,7 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
+          if (name == "^") e.pow_used = true;
           std::string left, right;
           Type left_type, right_type;
           std::tie(left, left_type) = lhs->convert(e, out);

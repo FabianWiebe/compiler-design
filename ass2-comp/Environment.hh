@@ -157,6 +157,8 @@ public:
 	std::map<std::string, Value>& get_const_values() {
 		return const_values;
 	}
+	bool pow_used = false;
+	bool exit_used = false;
 private:
 	void insert_into_function_vars(const std::string& name, Type type) {
 		// store variables for function, needed if function is called recursively

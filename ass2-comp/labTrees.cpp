@@ -69,7 +69,10 @@ std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool 
     std::string format_string = create_format_string(types, name);
     first = Expression::makeNames();
     e.store(first, Value(format_string));
-    if (name == "io.read") return_type = Type::LONG;
+    if (name == "io.read") {
+      e.exit_used = true;
+      return_type = Type::LONG;
+    }
   }
   if (is_expression) {
     if (return_type == Type::VOID) {
@@ -380,6 +383,18 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
         define_vars_asm(stream, e);
 
         stream << ".text" << std::endl << ".globl main" << std::endl;
+        if (e.pow_used) {
+          stream << "pow: # pow function begin" << std::endl;
+          stream << "\t\tmovq %rdi, %rax" << std::endl;
+          stream << "pow_loop:" << std::endl;
+          stream << "\t\tcmp $1, %rsi" << std::endl;
+          stream << "\t\tjbe pow_ret" << std::endl;
+          stream << "\t\tdec %rsi" << std::endl;
+          stream << "\t\tmul %rdi" << std::endl;
+          stream << "\t\tjmp pow_loop" << std::endl;
+          stream << "pow_ret:" << std::endl;
+          stream << "\t\tret # pow function end" << std::endl;
+        }
 
         for (auto & pair : e.get_functions()) {
           Function* func = pair.second;
@@ -415,7 +430,9 @@ void dumpCFG(Environment& e, BBlock *start, std::ostream& stream)
 {
         stream << "digraph {" << std::endl;
 
-        stream << "declaration_block [shape=box, label=\"";
+        stream << R"(declaration_block [shape=box, label="#include \"stdio.h\")" << std::endl;
+        if (e.pow_used) stream << R"(#include \"math.h\")" << std::endl;
+        if (e.exit_used) stream << R"(#include \"stdlib.h\")" << std::endl;
         define_vars(stream, e, true);
         stream << "\"];" << std::endl;
         stream << "declaration_block -> " << start->name << ";" << std::endl;
