@@ -357,7 +357,7 @@ public:
         {
           // Lecture 8 / slide 11.
           // Virtual (but not pure) to allow overriding in the leaves.
-          auto str = "_t" + std::to_string(tmp_counter++) + "_" + e.get_current_function_name();
+          auto str = "_t" + std::to_string(tmp_counter++) + e.get_current_function_name();
           e.set(str, type);
           return str;
         }
@@ -365,7 +365,7 @@ public:
         {
           // Lecture 8 / slide 11.
           // Virtual (but not pure) to allow overriding in the leaves.
-          return "_t" + std::to_string(tmp_counter++) + "_" + e.get_current_function_name();
+          return "_t" + std::to_string(tmp_counter++) + e.get_current_function_name();
         }
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out) = 0; // Lecture 8 / slide 12.
         
@@ -418,7 +418,7 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          if (!updated_name) var_name += "_" + e.get_current_function_name();
+          if (!updated_name) var_name += e.get_current_function_name();
           updated_name = true;
           if (type == Type::UNDEFINED) {
             type = e.get(var_name);
@@ -427,7 +427,7 @@ public:
         }
 
         virtual void assign(Environment & e, BBlock* out, Expression* value) {
-          if (!updated_name) var_name += "_" + e.get_current_function_name();
+          if (!updated_name) var_name += e.get_current_function_name();
           updated_name = true;
           std::string name;
           std::tie(name, type) = value->convert(e, out);
@@ -454,7 +454,7 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          array_name += "_" + e.get_current_function_name();
+          array_name += e.get_current_function_name();
           std::string name = makeNames(e, Type::LONG);
           out->instructions.emplace_back(name, "#", array_name, array_name, Type::ARRAY, Type::ARRAY, Type::LONG);
           return {name, Type::LONG};
@@ -479,7 +479,7 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          if (!updated_name) array_name += "_" + e.get_current_function_name();
+          if (!updated_name) array_name += e.get_current_function_name();
           updated_name = true;
           std::string name = makeNames(e, Type::DOUBLE);
           std::string pos_name = position->convert(e, out).first;
@@ -488,7 +488,7 @@ public:
         }
 
         virtual void assign(Environment & e, BBlock* out, Expression* value) {
-          if (!updated_name) array_name += "_" + e.get_current_function_name();
+          if (!updated_name) array_name += e.get_current_function_name();
           updated_name = true;
           std::string value_name = value->convert(e, out).first;
           std::string pos_name = position->convert(e, out).first;
@@ -759,7 +759,7 @@ public:
 
         virtual BBlock* convert(Environment& e, BBlock* out)
         {
-          var_name += "_" + e.get_current_function_name();
+          var_name += e.get_current_function_name();
           out->instructions.emplace_back(var_name, name, var_name, var_name, Type::LONG, Type::LONG, Type::LONG);
           return out;
         }
