@@ -113,19 +113,32 @@ public:
                     stream << "\t\tcall printf" << std::endl;
                   } else { // function call
                     if (!parms_for_stack.empty()) {
-                      stream << "  /* pushing function variables to stack: ";
+                      stream << "\t\t# pushing function variables to stack: ";
                       for (auto & pair : parms_for_stack) {
                         stream << type_as_string(pair.second) << " " << pair.first << ", ";
                       }
-                      stream << "*/" << std::endl;
+                      stream << std::endl;
                     }
-                    std::string save_return = "";
-                    if (ret_type != Type::VOID) save_return = name + " = ";
-                    stream << "  " << save_return << lhs << "(" << combine(function_parameter_values, ", ") << ");" << std::endl;
+                    push_parms_to_reg(stream, function_parameter_values, function_parameter_types);
+                    stream << "\t\tcall " << lhs << std::endl;
+                    if (ret_type != Type::VOID) {
+                      if (ret_type == Type::DOUBLE) {
+                        stream << "\t\tmovsd %xmm0, " << name << " # get return value" << std::endl;
+                      } else {
+                        stream << "\t\tmovq %rax, " << name << " # get return value" << std::endl;
+                      }
+                    }
                   }
                   stream << "\t\taddq $8, %rsp # Alignment" << std::endl << std::endl;
                 } else if (op == "return") {
-                  stream << "  return " << lhs << ";" << std::endl;
+                  if (ret_type != Type::VOID) {
+                    if (ret_type == Type::DOUBLE) {
+                      stream << "\t\tmovsd " << lhs << ", %xmm0 # return value" << std::endl;
+                    } else {
+                      stream << "\t\tmovq " << lhs << ", %rax # return value" << std::endl;
+                    }
+                  }
+                  stream << "\t\tret" << std::endl;
                 } else {
 
                   bool double_op = op == "/" || l_type == Type::DOUBLE || r_type == Type::DOUBLE || ret_type == Type::DOUBLE;
@@ -139,8 +152,8 @@ public:
                       if (r_type == Type::DOUBLE) {
                         stream << "\t\tmovsd " << rhs << ", %xmm1" << std::endl;                        
                       } else if (r_type == Type::LONG) {
-                        stream << "\t\tmovq " << format_value(rhs) << ", %rbx" << std::endl;
-                        stream << "\t\tcvtsi2sdq %rbx, %xmm1" << std::endl;
+                        stream << "\t\tmovq " << format_value(rhs) << ", %rcx" << std::endl;
+                        stream << "\t\tcvtsi2sdq %rcx, %xmm1" << std::endl;
                       }
                       if (op == "c") {
                         stream << "\t\t# copy is a dummy operation" << std::endl;
@@ -154,43 +167,43 @@ public:
                         stream << "\t\tdivsd %xmm1, %xmm0" << std::endl;
                       } else if (op == "c[]") {
                         // name = lhs [rhs]
-                        //stream << "\t\tdec %rbx" << std::endl;
+                        //stream << "\t\tdec %rcx" << std::endl;
                         stream << "\t\tmovq $8, %rax" << std::endl;
-                        stream << "\t\tmul %rbx" << std::endl;
-                        stream << "\t\tlea " << format_value(lhs) << ", %rbx" << std::endl;
-                        stream << "\t\tmovsd (%rax, %rbx), %xmm0" << std::endl;
+                        stream << "\t\tmul %rcx" << std::endl;
+                        stream << "\t\tlea " << format_value(lhs) << ", %rcx" << std::endl;
+                        stream << "\t\tmovsd (%rax, %rcx), %xmm0" << std::endl;
                       } else if (op == "[]c") {
                         // name [rhs] = lhs
-                        //stream << "\t\tdec %rbx" << std::endl;
+                        //stream << "\t\tdec %rcx" << std::endl;
                         stream << "\t\tmovq $8, %rax" << std::endl;
-                        stream << "\t\tmul %rbx" << std::endl;
-                        stream << "\t\tlea " << format_value(name) << ", %rbx" << std::endl;
-                        stream << "\t\tmovsd %xmm0, (%rax, %rbx)" << std::endl;
+                        stream << "\t\tmul %rcx" << std::endl;
+                        stream << "\t\tlea " << format_value(name) << ", %rcx" << std::endl;
+                        stream << "\t\tmovsd %xmm0, (%rax, %rcx)" << std::endl;
                       } else if (is_comp) {  
                         stream << "\t\tcomisd %xmm1, %xmm0" << std::endl; //cmppd
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
-                      if (ret_type != Type::ARRAY && !is_comp) stream << "\t\tmovsd %xmm0, " << format_value(name) << std::endl;
+                      if (ret_type != Type::ARRAY && !is_comp) stream << "\t\tmovsd %xmm0, " << name << std::endl;
                       stream << std::endl;
 
                     } else {
                       if (l_type != Type::ARRAY) stream << "\t\tmovq " << format_value(lhs) << ", %rax" << std::endl;
-                      if (r_type != Type::ARRAY) stream << "\t\tmovq " << format_value(rhs) << ", %rbx" << std::endl;
+                      if (r_type != Type::ARRAY) stream << "\t\tmovq " << format_value(rhs) << ", %rcx" << std::endl;
                       if (op == "c") {
                         stream << "\t\t# copy is a dummy operation" << std::endl;
                       } else if (op == "+") {
-                        stream << "\t\taddq %rbx, %rax" << std::endl;
+                        stream << "\t\taddq %rcx, %rax" << std::endl;
                       } else if (op == "-") {
-                        stream << "\t\tsubq %rbx, %rax" << std::endl;
+                        stream << "\t\tsubq %rcx, %rax" << std::endl;
                       } else if (op == "*") {
-                        stream << "\t\tmul %rbx" << std::endl;
+                        stream << "\t\tmul %rcx" << std::endl;
                       } else if (op == "/") {
                         stream << "\t\tmovq $0, %rdx" << std::endl;
-                        stream << "\t\tdiv %rbx" << std::endl;
+                        stream << "\t\tdiv %rcx" << std::endl;
                       } else if (op == "%") {
                         stream << "\t\tmovq $0, %rdx" << std::endl;
-                        stream << "\t\tdiv %rbx" << std::endl;
+                        stream << "\t\tdiv %rcx" << std::endl;
                         stream << "\t\tmovq %rdx, %rax" << std::endl;
                       } else if (op == "++") {
                         stream << "\t\tinc %rax" << std::endl;
@@ -198,16 +211,16 @@ public:
                         stream << "\t\txorq $1, %rax" << std::endl;
                       }  else if (op == "^") {
                         stream << "\t\tmovq %rax, %rdi" << std::endl;
-                        stream << "\t\tmovq %rbx, %rsi" << std::endl;
+                        stream << "\t\tmovq %rcx, %rsi" << std::endl;
                         stream << "\t\tcall pow" << std::endl;
                       } else if (op == "#") {
                         stream << "\t\tmovq " << lhs << ", %rax" << std::endl;
                       } else if (is_comp) {  
-                        stream << "\t\tcmp %rbx, %rax" << std::endl;
+                        stream << "\t\tcmp %rcx, %rax" << std::endl;
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
-                      stream << "\t\tmovq %rax, " << format_value(name) << std::endl << std::endl;
+                      stream << "\t\tmovq %rax, " << name << std::endl << std::endl;
                     }
                 }
         }

@@ -371,6 +371,27 @@ void dump_blocks(BBlock *start, std::ostream& stream, void (BBlock::*func)(std::
   }
 }
 
+void get_parms_from_reg(std::ostream& stream, const std::list<std::string>& names, const std::list<Type>& types) {
+  std::list<std::string> std_regs{"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+  std::list<std::string> dbl_regs{"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
+  auto std_reg_itr = std_regs.begin();
+  auto dbl_reg_itr = dbl_regs.begin();
+  auto types_itr = types.begin();
+  size_t counter_dbl = 0, counter_std = 0;
+  for (auto itr = names.begin(); itr != names.end(); ++itr, ++types_itr) {
+    if (*types_itr == Type::DOUBLE) {
+      if (dbl_reg_itr == dbl_regs.end()) throw std::invalid_argument( "Can only pass 8 doubles as parameters." );
+      stream << "\t\tmovsd %" << *dbl_reg_itr++ << ", " << *itr << " # double Arg " << ++counter_dbl << std::endl;
+    } else if (*types_itr == Type::STRING) {
+      if (std_reg_itr == std_regs.end()) throw std::invalid_argument( "Can only pass 6 standard parameters. Pushing parameters on stack not implemented." );
+      stream << "\t\tmovq %" << *std_reg_itr++ << ", " << *itr << " # Arg " << ++counter_std << std::endl;
+    } else {
+      if (std_reg_itr == std_regs.end()) throw std::invalid_argument( "Can only pass 6 standard parameters. Pushing parameters on stack not implemented." );
+      stream << "\t\tmovq %" << *std_reg_itr++ << ", " << *itr << " # Arg " << ++counter_std << std::endl;
+    }
+  }
+}
+
 /*
  * Iterate over each basic block that can be reached from the entry point
  * exactly once, so that we can dump out the entire graph.
@@ -399,19 +420,10 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
         for (auto & pair : e.get_functions()) {
           Function* func = pair.second;
           if (func->first_block) {
-            stream << std::endl;
-            stream << type_as_string(func->return_type) << " " << func->name << "(";
-            if (!func->parameter_types.empty()) {
-              auto type_itr = func->parameter_types.begin();
-              auto name_itr = func->parameter_names.begin();
-              stream << type_to_string(*type_itr, *name_itr);
-              for(++type_itr, ++name_itr; type_itr != func->parameter_types.end(); ++type_itr, ++name_itr) {
-                stream << ", " << type_to_string(*type_itr, *name_itr);
-              }
-              stream << ") {" << std::endl;
-                dump_blocks(func->first_block, stream, &BBlock::dump);
-              stream << "}" << std::endl;
-            }
+            stream << func->name << ": # " << func->name << " function begin" << std::endl;
+            get_parms_from_reg(stream, func->parameter_names, func->parameter_types);
+            dump_blocks(func->first_block, stream, &BBlock::dump);
+            stream << "\t\tret # " << func->name << " function end" << std::endl;
           }
         }
 
