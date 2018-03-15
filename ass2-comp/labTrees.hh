@@ -113,14 +113,19 @@ public:
                     stream << "\t\tcall printf" << std::endl;
                   } else { // function call
                     if (!parms_for_stack.empty()) {
-                      stream << "\t\t# pushing function variables to stack: ";
+                      stream << "\t\t# pushing function variables to stack " << std::endl;
                       for (auto & pair : parms_for_stack) {
-                        stream << type_as_string(pair.second) << " " << pair.first << ", ";
+                        stream << "\t\tpushq " << pair.first << " # " << type_as_string(pair.second) << std::endl;
                       }
-                      stream << std::endl;
                     }
                     push_parms_to_reg(stream, function_parameter_values, function_parameter_types);
                     stream << "\t\tcall " << lhs << std::endl;
+                    if (!parms_for_stack.empty()) {
+                      stream << "\t\t# popping function variables from stack " << std::endl;
+                      for (auto & pair : parms_for_stack) {
+                        stream << "\t\tpopq " << pair.first << " # " << type_as_string(pair.second) << std::endl;
+                      }
+                    }
                     if (ret_type != Type::VOID) {
                       if (ret_type == Type::DOUBLE) {
                         stream << "\t\tmovsd %xmm0, " << name << " # get return value" << std::endl;
@@ -135,7 +140,7 @@ public:
                     if (ret_type == Type::DOUBLE) {
                       stream << "\t\tmovsd " << lhs << ", %xmm0 # return value" << std::endl;
                     } else {
-                      stream << "\t\tmovq " << lhs << ", %rax # return value" << std::endl;
+                      stream << "\t\tmovq " << format_value(lhs) << ", %rax # return value" << std::endl;
                     }
                   }
                   stream << "\t\tret" << std::endl;
@@ -220,7 +225,7 @@ public:
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
-                      stream << "\t\tmovq %rax, " << name << std::endl << std::endl;
+                      if (!is_comp) stream << "\t\tmovq %rax, " << name << std::endl << std::endl;
                     }
                 }
         }
@@ -350,15 +355,15 @@ public:
         {
           // Lecture 8 / slide 11.
           // Virtual (but not pure) to allow overriding in the leaves.
-          auto str = "_t" + std::to_string(tmp_counter++);
+          auto str = "_t" + std::to_string(tmp_counter++) + "_" + e.get_current_function_name();
           e.set(str, type);
           return str;
         }
-        static std::string makeNames() 
+        static std::string makeNames(Environment& e) 
         {
           // Lecture 8 / slide 11.
           // Virtual (but not pure) to allow overriding in the leaves.
-          return "_t" + std::to_string(tmp_counter++);
+          return "_t" + std::to_string(tmp_counter++) + "_" + e.get_current_function_name();
         }
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out) = 0; // Lecture 8 / slide 12.
         
@@ -404,12 +409,15 @@ class Var : public Expression
 public:
         std::string var_name;
         Type type;
+        bool updated_name;
 
-        Var(std::string var_name) :
-                Expression("var"), var_name(var_name) {}
+        Var(std::string var_name, bool updated_name = false) :
+                Expression("var"), var_name(var_name), updated_name(updated_name) {}
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
+          if (!updated_name) var_name += "_" + e.get_current_function_name();
+          updated_name = true;
           if (type == Type::UNDEFINED) {
             type = e.get(var_name);
           }
@@ -417,6 +425,8 @@ public:
         }
 
         virtual void assign(Environment & e, BBlock* out, Expression* value) {
+          if (!updated_name) var_name += "_" + e.get_current_function_name();
+          updated_name = true;
           std::string name;
           std::tie(name, type) = value->convert(e, out);
           e.set(var_name, type);
@@ -442,6 +452,7 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
+          array_name += "_" + e.get_current_function_name();
           std::string name = makeNames(e, Type::LONG);
           out->instructions.emplace_back(name, "#", array_name, array_name, Type::ARRAY, Type::ARRAY, Type::LONG);
           return {name, Type::LONG};
@@ -455,8 +466,9 @@ public:
 class ArrayAccess : public Expression
 {
 public:
-        const std::string array_name;
+        std::string array_name;
         Expression* position;
+        bool updated_name = false;
 
         ArrayAccess(const std::string& array_name, Expression* position) :
                 Expression("[]"), array_name(array_name), position(position)
@@ -465,6 +477,8 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
+          if (!updated_name) array_name += "_" + e.get_current_function_name();
+          updated_name = true;
           std::string name = makeNames(e, Type::DOUBLE);
           std::string pos_name = position->convert(e, out).first;
           out->instructions.emplace_back(name, "c[]", array_name, pos_name, Type::ARRAY, Type::LONG, Type::DOUBLE);
@@ -472,6 +486,8 @@ public:
         }
 
         virtual void assign(Environment & e, BBlock* out, Expression* value) {
+          if (!updated_name) array_name += "_" + e.get_current_function_name();
+          updated_name = true;
           std::string value_name = value->convert(e, out).first;
           std::string pos_name = position->convert(e, out).first;
           out->instructions.emplace_back(array_name, "[]c", value_name, pos_name, Type::DOUBLE, Type::LONG, Type::ARRAY);
@@ -520,7 +536,7 @@ public:
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
           if (value.type == Type::DOUBLE || value.type == Type::STRING) {
-            std::string name = makeNames();
+            std::string name = makeNames(e);
             e.store(name, value);
             return {name, value.type};
           }
@@ -683,7 +699,7 @@ public:
           } else {
             Array* tmp_values = new Array({}, "tmp values");
             for (size_t i = 0; i < lhs->expressions.size(); ++i) {
-              tmp_values->expressions.push_back(new Var(Expression::makeNames()));
+              tmp_values->expressions.push_back(new Var(Expression::makeNames(e), true));
             }
             tmp_values->assign(e, out, rhs);
             lhs->assign(e, out, tmp_values);
@@ -732,7 +748,7 @@ public:
 class Increment : public Statement
 {
 public:
-        const std::string var_name;
+        std::string var_name;
 
         Increment(const std::string& var_name) :
                 Statement("++"), var_name(var_name)
@@ -741,6 +757,7 @@ public:
 
         virtual BBlock* convert(Environment& e, BBlock* out)
         {
+          var_name += "_" + e.get_current_function_name();
           out->instructions.emplace_back(var_name, name, var_name, var_name, Type::LONG, Type::LONG, Type::LONG);
           return out;
         }
@@ -806,6 +823,9 @@ public:
         Function(const std::string& name, std::list<std::string>& parameter_names, Statement *body) :
                 Statement(name), parameter_names(parameter_names), body(body), was_dumped(false)
         {
+          for (auto& parm_name : this->parameter_names) {
+            parm_name += "_" + name;
+          }
         }
 
         virtual BBlock* convert(Environment& e, BBlock *out)

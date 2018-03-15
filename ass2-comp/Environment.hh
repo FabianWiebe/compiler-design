@@ -146,6 +146,11 @@ public:
 		return l;
 	}
 
+	std::string get_current_function_name() {
+		if (current_function.empty()) return "";
+		return current_function.back();
+	}
+
 	friend std::ostream& operator<< (std::ostream& stream, const Environment& env) {
 		auto & mapping = env.stack.top();
 		stream << "Current context: (Size: " << mapping.size() << ")" << std::endl;

@@ -26,9 +26,10 @@ int main(int argc, char **argv)
 		//std::cout << std::endl;
 		Environment env;
 		Statement *current_test = root;
-		//current_test->dump();
 		BBlock *first_block = new BBlock();
+		//current_test->dump();
 		current_test->convert(env, first_block);
+		//current_test->dump();
 		//dump_asm(first_block);
 		
 		std::ofstream asm_file;

@@ -67,7 +67,7 @@ std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool 
     return_type = e.get_function(name)->dump_function(e, types);
   } else {
     std::string format_string = create_format_string(types, name);
-    first = Expression::makeNames();
+    first = Expression::makeNames(e);
     e.store(first, Value(format_string));
     if (name == "io.read") {
       e.exit_used = true;
@@ -183,6 +183,19 @@ void define_vars(std::ostream& stream, Environment& e, bool esc_str) {
       stream << pair.second;
     }
     stream << ";" << std::endl;
+  }
+}
+
+void define_function_vars_asm(std::ostream& stream, const std::list<std::string>& names, const std::list<Type> types) {
+  auto name_itr = names.begin();
+  for (auto types_itr = types.begin(); types_itr != types.end(); ++types_itr, ++name_itr) {
+      stream << *name_itr<< ":\t.";
+      if (*types_itr == Type::LONG) {
+        stream << "quad 0";
+      } else if (*types_itr == Type::DOUBLE){
+        stream << type_as_string(*types_itr) << " 0";
+      }
+      stream << std::endl;    
   }
 }
 
@@ -402,6 +415,10 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
         stream << ".data" << std::endl;
 
         define_vars_asm(stream, e);
+        for (auto& pair : e.get_functions()) {
+          Function* func = pair.second;
+          define_function_vars_asm(stream, func->parameter_names, func->parameter_types);
+        }
 
         stream << ".text" << std::endl << ".globl main" << std::endl;
         if (e.pow_used) {
