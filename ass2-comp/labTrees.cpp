@@ -1,5 +1,23 @@
 #include "labTrees.hh"
 
+std::string get_print_parm(Type type) {
+    switch(type) {
+      case Type::LONG: {
+        return "%ld";
+      }
+      case Type::DOUBLE: {
+        return "%lg"; //f
+      }
+      case Type::BOOL: {
+        return "%d";
+      }
+      case Type::STRING: {
+        return "%s";
+      }
+    }
+    throw std::invalid_argument( std::string("Cannot print type ") + type_as_string(type) );
+}
+
 std::string get_jmp_code(const std::string& comp) {
   if (comp == "==") {
     return "je";
@@ -65,21 +83,47 @@ std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool 
   }
   if (name != "io.read" && name != "io.write" && name != "print") {
     return_type = e.get_function(name)->dump_function(e, types);
-  } else {
-    std::string format_string = create_format_string(types, name);
-    first = Expression::makeNames(e);
-    e.store(first, Value(format_string));
-    if (name == "io.read") {
-      e.exit_used = true;
-      return_type = Type::LONG;
+  } else if (name == "io.read") {
+    name = "scanf";
+    first = e.makeNames();
+    e.store(first, Value(std::string("%ld")));
+    e.read_used = true;
+    return_type = Type::LONG;
+  } else { // io.write, print
+    if (is_expression) {
+      throw std::invalid_argument( std::string("Void function ") + name +  " has no return argument." );
     }
+    if (!values.empty()) {
+      for (Type type : types) if (type == Type::DOUBLE || type == Type::LONG) e.convert_num_to_string = true;
+      auto values_itr = values.begin();
+      auto types_itr = types.begin();
+      std::list<std::string> tmp_values{*values_itr};
+      std::list<Type> tmp_types{*types_itr};
+      out->instructions.emplace_back(return_name, "call", "printf", *values_itr, Type::STRING, *types_itr, return_type, tmp_values, tmp_types);
+      for (++values_itr, ++types_itr; values_itr != values.end(); ++values_itr, ++types_itr) {
+        if (name == "print") {
+          std::list<std::string> tmp_values{e.get_tab_str()};
+          std::list<Type> tmp_types{Type::STRING};
+          out->instructions.emplace_back(return_name, "call", "printf", e.get_tab_str(), Type::STRING, Type::STRING, return_type, tmp_values, tmp_types);
+        }
+        std::list<std::string> tmp_values{*values_itr};
+        std::list<Type> tmp_types{*types_itr};
+        out->instructions.emplace_back(return_name, "call", "printf", *values_itr, Type::STRING, *types_itr, return_type, tmp_values, tmp_types);
+      }
+    }
+    if (name == "print") { // print new line at end
+      std::list<std::string> tmp_values{e.get_newline_str()};
+      std::list<Type> tmp_types{Type::STRING};
+      out->instructions.emplace_back(return_name, "call", "printf", e.get_newline_str(), Type::STRING, Type::STRING, return_type, tmp_values, tmp_types);
+    }
+    return {return_name, return_type};
   }
   if (is_expression) {
     if (return_type == Type::VOID) {
       throw std::invalid_argument( std::string("Void function ") + name +  " has no return argument." );
     }
     // use return value
-    return_name = Expression::makeNames(e, return_type);
+    return_name = e.makeNames(return_type);
   }
   std::list<std::pair<std::string, Type>> parms_for_stack;
   if (e.recursive_call(name)) {
@@ -116,23 +160,6 @@ void output_end_of_asm(std::ostream& stream, const std::list<std::pair<std::stri
 )";
 }
 
-std::string get_print_parm(Type type) {
-    switch(type) {
-      case Type::LONG: {
-        return "%ld";
-      }
-      case Type::DOUBLE: {
-        return "%g"; //f
-      }
-      case Type::BOOL: {
-        return "%d";
-      }
-      case Type::STRING: {
-        return "%s";
-      }
-    }
-    throw std::invalid_argument( std::string("Cannot print type ") + type_as_string(type) );
-}
 
 std::list<Type> types{Type::LONG, Type::DOUBLE, Type::BOOL, Type::STRING};
 
@@ -173,16 +200,15 @@ void define_vars(std::ostream& stream, Environment& e, bool esc_str) {
     stream << type_to_string(type, pair.first) << " = ";
     if (type == Type::STRING) {
       if (esc_str) {
-        stream << "\\\"" << escape_new_lines(pair.second.as_string()) << "\\\"";
+        stream << "\\\"" << escape_new_lines(pair.second.as_string()) << "\\\";" << std::endl;;
       } else {
-        stream << "\"" << pair.second << "\"";
+        stream << "\"" << pair.second << "\";" << std::endl;;
       }
     } else if (type == Type::ARRAY) {
-      stream << "{" << pair.second.as_array().size() << ", " << pair.second << "}";
+      stream << "{" << pair.second.as_array().size() << ", " << pair.second << "}; // array size at "<< pair.first << "[0]" << std::endl;
     } else {
-      stream << pair.second;
+      stream << pair.second << ";" << std::endl;
     }
-    stream << ";" << std::endl;
   }
 }
 
@@ -219,7 +245,7 @@ void define_vars_asm(std::ostream& stream, Environment& e) {
     } else if (type == Type::ARRAY) {
       auto& array = pair.second.as_array();
       auto itr = array.begin();
-      stream << "quad " << array.size();
+      stream << "quad " << array.size() << " # array size is placed at position " << pair.first << "[0]";
       for (auto val : array) {
         stream << std::endl << "\t\t.double " << val;
       }
@@ -228,6 +254,10 @@ void define_vars_asm(std::ostream& stream, Environment& e) {
     }
     stream << std::endl;
   }
+  // will be delted when libc is removed:
+  stream << "_print_string:\t.string \"%s\"" << std::endl;
+  stream << "_print_double:\t.string \"%lg\"" << std::endl;
+  stream << "_print_long:\t.string \"%ld\"" << std::endl;
 }
 
 void output_vars(std::ostream& stream, Environment& e) {
@@ -260,7 +290,6 @@ std::ostream& indent(std::ostream& stream, int depth) {
 
 
 int BBlock::nCounter = 0;
-int Expression::tmp_counter = 0;
 
 
 /* Test casesType:: */
@@ -444,10 +473,11 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
           }
         }
 
-        stream << "main:" << std::endl;
+        stream << "main: # main begin" << std::endl;
 
         dump_blocks(start, stream, &BBlock::dump);
-        stream << "\t\tret" << std::endl;
+
+        stream << "\t\tret # main end" << std::endl;
 }
 
 /*
@@ -461,7 +491,7 @@ void dumpCFG(Environment& e, BBlock *start, std::ostream& stream)
 
         stream << R"(declaration_block [shape=box, label="#include \"stdio.h\")" << std::endl;
         if (e.pow_used) stream << R"(#include \"math.h\")" << std::endl;
-        if (e.exit_used) stream << R"(#include \"stdlib.h\")" << std::endl;
+        if (e.read_used) stream << R"(#include \"stdlib.h\")" << std::endl;
         define_vars(stream, e, true);
         stream << "\"];" << std::endl;
         stream << "declaration_block -> " << start->name << ";" << std::endl;

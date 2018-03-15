@@ -25,8 +25,6 @@ void output_start_of_asm(std::ostream& stream);
 
 void output_end_of_asm(std::ostream& stream, const std::list<std::pair<std::string, Type>>& var_names);
 
-std::string get_print_parm(Type type);
-
 void define_vars(std::ostream& stream, Environment& e, bool esc_str = false);
 void define_vars(std::ostream& stream, std::list<std::string>& var_names, Type type);
 
@@ -100,22 +98,22 @@ public:
                 }
 
                 if (op == "call") {
-                  stream << "\t\tsubq $8, %rsp # Alignment" << std::endl;
-                  if (lhs == "io.read") {
+                  if (lhs == "scanf" || lhs == "printf") stream << "\t\tsubq $8, %rsp # Alignment" << std::endl;
+                  if (lhs == "scanf") {
                     std::list<std::string> names{rhs, name};
                     std::list<Type> types{Type::STRING, Type::STRING}; // 2nd arg is a long address, but string will load the address
                     push_parms_to_reg(stream, names, types);
                     stream << "\t\tcall scanf" << std::endl;
-                  } else if (lhs == "print" || lhs == "io.write") {
+                  } else if (lhs == "printf") {
                     std::list<std::string> parms = function_parameter_values;
-                    parms.push_front(rhs);
+                    parms.push_front("_print_" + type_as_string(r_type));
                     std::list<Type> types = function_parameter_types;
                     types.push_front(Type::STRING);
                     push_parms_to_reg(stream, parms, types);
                     stream << "\t\tcall printf" << std::endl;
                   } else { // function call
                     if (!parms_for_stack.empty()) {
-                      stream << "\t\t# pushing function variables to stack " << std::endl;
+                      stream << "\t\t# pushing function variables to stack" << std::endl;
                       for (auto & pair : parms_for_stack) {
                         stream << "\t\tpushq " << pair.first << " # " << type_as_string(pair.second) << std::endl;
                       }
@@ -123,7 +121,7 @@ public:
                     push_parms_to_reg(stream, function_parameter_values, function_parameter_types);
                     stream << "\t\tcall " << lhs << std::endl;
                     if (!parms_for_stack.empty()) {
-                      stream << "\t\t# popping function variables from stack " << std::endl;
+                      stream << "\t\t# popping function variables from stack in reverse order" << std::endl;
                       for (auto itr = parms_for_stack.rbegin(); itr !=  parms_for_stack.rend(); ++itr) {
                         stream << "\t\tpopq " << itr->first << " # " << type_as_string(itr->second) << std::endl;
                       }
@@ -136,7 +134,7 @@ public:
                       }
                     }
                   }
-                  stream << "\t\taddq $8, %rsp # Alignment" << std::endl << std::endl;
+                  if (lhs == "scanf" || lhs == "printf") stream << "\t\taddq $8, %rsp # Alignment" << std::endl << std::endl;
                 } else if (op == "return") {
                   if (ret_type != Type::VOID) {
                     if (ret_type == Type::DOUBLE) {
@@ -206,7 +204,7 @@ public:
                       } else if (op == "*") {
                         stream << "\t\tmul %rcx" << std::endl;
                       } else if (op == "/") {
-                        stream << "\t\tmovq $0, %rdx" << std::endl;
+                        stream << "\t\txorq %rdx, %rdx" << std::endl;
                         stream << "\t\tdiv %rcx" << std::endl;
                       } else if (op == "%") {
                         stream << "\t\tmovq $0, %rdx" << std::endl;
@@ -221,7 +219,7 @@ public:
                         stream << "\t\tmovq %rcx, %rsi" << std::endl;
                         stream << "\t\tcall pow" << std::endl;
                       } else if (op == "#") {
-                        stream << "\t\tmovq " << lhs << ", %rax" << std::endl;
+                        stream << "\t\tmovq " << lhs << ", %rax # array size is placed at position " << lhs << "[0]" << std::endl;
                       } else if (is_comp) {  
                         stream << "\t\tcmp %rcx, %rax" << std::endl;
                       } else {
@@ -251,9 +249,9 @@ public:
                 if (op == "c") {
                   stream << "  " << name << " = " << lhs << ";" << std::endl;
                 } else if (op == "call") {
-                  if (lhs == "io.read") {
+                  if (lhs == "scanf") {
                     stream << "  if (scanf(\\\"%ld\\\", &"<< name << ") == EOF) exit(-1);" << std::endl;
-                  } else if (lhs == "print" || lhs == "io.write") {
+                  } else if (lhs == "printf") {
                     std::list<std::string> parms = function_parameter_values;
                     parms.push_front(std::string("\\\"") + escape_new_lines(create_format_string(function_parameter_types, lhs)) + "\\\"");
                     stream << "  printf(" << combine(parms, ", ") << ");" << std::endl;
@@ -282,7 +280,7 @@ public:
                 } else if (op == "return") {
                   stream << "  return " << lhs << ";" << std::endl;
                 } else if (op == "#") {
-                  stream << "  " << name << " = (long) " << lhs << "[0];" << std::endl;
+                  stream << "  " << name << " = (long) " << lhs << "[0]; // array size at " << lhs << "[0]" << std::endl;
                 } else {  
                   stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 }
@@ -308,12 +306,9 @@ public:
 
         void dump(std::ostream& stream = std::cout)
         {
-                stream << name << ":" << std::endl;
+                stream << name << ": # block " << name << " begin" << std::endl;
                 for (auto i : instructions) {
                         i.dump(stream);
-                }
-                if (instructions.empty() && !tExit) {
-                  stream << "\t\tret" << std::endl;
                 }
                 if (tExit) {
                   stream << "\t\t" << (cond_jump.empty() ? "jmp" : get_jmp_code(cond_jump)) << " " << tExit->name << " # True" << std::endl;
@@ -321,6 +316,7 @@ public:
                 if (fExit) {
                   stream << "\t\tjmp " << fExit->name << " # False" << std::endl;
                 }
+                stream << "\t\t# block " << name << " end" << std::endl;
         }
         void dumpCFG(std::ostream& stream = std::cout)
         {
@@ -343,30 +339,11 @@ public:
 
 std::ostream& indent(std::ostream& stream, int depth);
 
-class Expression
-{
-private:
-        static int tmp_counter;
+class Expression {
 public:
         const std::string name;
 
-        Expression(const std::string& name = "uninitialized") : name(name)
-        {
-        }
-        static std::string makeNames(Environment& e, Type type) 
-        {
-          // Lecture 8 / slide 11.
-          // Virtual (but not pure) to allow overriding in the leaves.
-          auto str = "_t" + std::to_string(tmp_counter++) + e.get_current_function_name();
-          e.set(str, type);
-          return str;
-        }
-        static std::string makeNames(Environment& e) 
-        {
-          // Lecture 8 / slide 11.
-          // Virtual (but not pure) to allow overriding in the leaves.
-          return "_t" + std::to_string(tmp_counter++) + e.get_current_function_name();
-        }
+        Expression(const std::string& name = "uninitialized") : name(name) {}
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out) = 0; // Lecture 8 / slide 12.
         
         virtual void dump(std::ostream& stream=std::cout, int depth = 0) = 0;
@@ -394,7 +371,7 @@ public:
           std::tie(left, left_type) = lhs->convert(e, out);
           std::tie(right, right_type) = rhs->convert(e, out);
           Type type = left_type == Type::LONG && right_type == Type::LONG && name != "/" ? Type::LONG : Type::DOUBLE;
-          auto gen_name = makeNames(e, type);
+          auto gen_name = e.makeNames(type);
           out->instructions.emplace_back(gen_name, name, left, right, left_type, right_type, type);
           return {gen_name, type};
         }
@@ -455,7 +432,7 @@ public:
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
           array_name += e.get_current_function_name();
-          std::string name = makeNames(e, Type::LONG);
+          std::string name = e.makeNames(Type::LONG);
           out->instructions.emplace_back(name, "#", array_name, array_name, Type::ARRAY, Type::ARRAY, Type::LONG);
           return {name, Type::LONG};
         }
@@ -481,7 +458,7 @@ public:
         {
           if (!updated_name) array_name += e.get_current_function_name();
           updated_name = true;
-          std::string name = makeNames(e, Type::DOUBLE);
+          std::string name = e.makeNames(Type::DOUBLE);
           std::string pos_name = position->convert(e, out).first;
           out->instructions.emplace_back(name, "c[]", array_name, pos_name, Type::ARRAY, Type::LONG, Type::DOUBLE);
           return {name, Type::DOUBLE};
@@ -513,7 +490,7 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          std::string name = makeNames(e, Type::LONG);
+          std::string name = e.makeNames(Type::LONG);
           std::string bool_name = bool_value->convert(e, out).first;
           out->instructions.emplace_back(name, "!", bool_name, bool_name, Type::LONG, Type::LONG, Type::LONG);
           return {name, Type::LONG};
@@ -538,7 +515,7 @@ public:
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
           if (value.type == Type::DOUBLE || value.type == Type::STRING) {
-            std::string name = makeNames(e);
+            std::string name = e.makeNames();
             e.store(name, value);
             return {name, value.type};
           }
@@ -569,7 +546,7 @@ public:
             if (!ptr) throw std::invalid_argument( "Non-constant in array." );
             array.push_back(ptr->value);
           }
-          std::string name = makeNames(e, Type::ARRAY);
+          std::string name = e.makeNames(Type::ARRAY);
           Value array_value(array);
           e.store(name, array_value);
           return {name, Type::ARRAY};
@@ -603,7 +580,7 @@ public:
 
         virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out)
         {
-          auto gen_name = makeNames(e, Type::LONG);
+          auto gen_name = e.makeNames(Type::LONG);
           std::string left, right;
           Type left_type, right_type;
           std::tie(left, left_type) = lhs->convert(e, out);
@@ -701,7 +678,7 @@ public:
           } else {
             Array* tmp_values = new Array({}, "tmp values");
             for (size_t i = 0; i < lhs->expressions.size(); ++i) {
-              tmp_values->expressions.push_back(new Var(Expression::makeNames(e), true));
+              tmp_values->expressions.push_back(new Var(e.makeNames(), true));
             }
             tmp_values->assign(e, out, rhs);
             lhs->assign(e, out, tmp_values);

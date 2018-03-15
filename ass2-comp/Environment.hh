@@ -5,10 +5,14 @@
 #include <map>
 #include <iostream>
 #include <string>
+#include <list>
+
 
 #include "Value.hh"
+
 class Function;
 class BBlock;
+
 
 class Environment {
 public:
@@ -162,8 +166,38 @@ public:
 	std::map<std::string, Value>& get_const_values() {
 		return const_values;
 	}
+
+	std::string get_tab_str() {
+		if (tab_str.empty()) {
+			tab_str = makeNames();
+      		store(tab_str, Value(std::string("\\t")));
+		}
+		return tab_str;
+	}
+	std::string get_newline_str() {
+		if (newline_str.empty()) {
+			newline_str = makeNames();
+      		store(newline_str, Value(std::string("\\n")));
+		}
+		return newline_str;
+	}
+
+	std::string makeNames(Type type) {
+		// Lecture 8 / slide 11.
+		// Virtual (but not pure) to allow overriding in the leaves.
+		auto str = makeNames();
+		set(str, type);
+		return str;
+	}
+	std::string makeNames() {
+		// Lecture 8 / slide 11.
+		// Virtual (but not pure) to allow overriding in the leaves.
+		return "_t" + std::to_string(tmp_counter++) + get_current_function_name();
+	}
+
 	bool pow_used = false;
-	bool exit_used = false;
+	bool read_used = false;
+	bool convert_num_to_string = false;
 private:
 	void insert_into_function_vars(const std::string& name, Type type) {
 		// store variables for function, needed if function is called recursively
@@ -186,6 +220,11 @@ private:
 	std::map<std::string, Function*> functions;
 	std::list<std::string> current_function;
 	std::map<std::string, std::map<std::string, Type>> function_vars;
+
+	std::string tab_str;
+	std::string newline_str;
+
+	static int tmp_counter;
 };
 
 #endif
