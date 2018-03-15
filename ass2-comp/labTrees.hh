@@ -98,7 +98,7 @@ public:
                 }
 
                 if (op == "call") {
-                  if (lhs == "scanf" || lhs == "printf") stream << "\t\tsubq $8, %rsp # Alignment" << std::endl;
+                  stream << "\t\tsubq $8, %rsp # Alignment" << std::endl;
                   if (lhs == "scanf") {
                     std::list<std::string> names{rhs, name};
                     std::list<Type> types{Type::STRING, Type::STRING}; // 2nd arg is a long address, but string will load the address
@@ -134,7 +134,7 @@ public:
                       }
                     }
                   }
-                  if (lhs == "scanf" || lhs == "printf") stream << "\t\taddq $8, %rsp # Alignment" << std::endl << std::endl;
+                  stream << "\t\taddq $8, %rsp # Alignment" << std::endl << std::endl;
                 } else if (op == "return") {
                   if (ret_type != Type::VOID) {
                     if (ret_type == Type::DOUBLE) {
