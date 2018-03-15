@@ -180,7 +180,7 @@ public:
 	Value(bool v) : type(Type::BOOL), value(std::make_shared<Store<bool>>(v)) {}
 	Value(long v) : type(Type::LONG), value(std::make_shared<Store<long>>(v)) {}
 	Value(double v) : type(Type::DOUBLE), value(std::make_shared<Store<double>>(v)) {}
-	Value(std::string v) : type(Type::STRING), value(std::make_shared<Store<std::string>>(v)) {}
+	Value(const std::string v) : type(Type::STRING), value(std::make_shared<Store<std::string>>(v)) {}
 	Value(std::vector<Value> v) : type(Type::ARRAY), value(std::make_shared<ArrayContainer>(v)) {}
 	Value(Node& v) : type(Type::FUNCTION), value(std::make_shared<FunctionContainer>(v)) {}
 	//Value(std::shared_ptr<BaseStore> v, Type t) : type(t), value(v) {}

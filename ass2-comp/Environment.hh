@@ -68,7 +68,7 @@ public:
 			parms.insert(std::make_pair(name, type));
 		}
 	}
-	void store(const std::string& name, Value& value) {
+	void store(const std::string& name, const Value& value) {
 		auto it = const_values.find(name);
 		if (it != const_values.end()) {
 			throw std::invalid_argument( "Variable name \"" + name + "\" already used" );

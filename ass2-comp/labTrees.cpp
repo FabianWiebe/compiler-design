@@ -1,5 +1,21 @@
 #include "labTrees.hh"
 
+std::string get_jmp_code(const std::string& comp) {
+  if (comp == "==") {
+    return "je";
+  } else if (comp == "!=") {
+    return "jne";
+  } else if (comp == "<") {
+    return "jl";
+  } else if (comp == ">") {
+    return "ja";
+  } else if (comp == "<=") {
+    return "jbe";
+  } else if (comp == ">=") {
+    return "jae";
+  }
+  throw std::invalid_argument( std::string("Invalid comparison ") + comp );
+}
 std::string combine(const std::list<std::string>& list, const std::string& delimeter) {
   if (list.empty()) return "";
   auto itr = list.begin();
@@ -8,6 +24,20 @@ std::string combine(const std::list<std::string>& list, const std::string& delim
     str += delimeter + *itr;
   }
   return str;
+}
+
+std::string create_format_string(const std::list<Type>& types, const std::string& function) {
+  if (function == "io.read") return "%ld";
+  std::list<std::string> formatted_types;
+  for (auto type : types) {
+    formatted_types.push_back(get_print_parm(type));
+  }
+  std::string delimeter = "", end_line = "";
+  if (function == "print") {
+    delimeter = "\\t";
+    end_line = "\\n";
+  }
+  return combine(formatted_types, delimeter) + end_line;
 }
 
 
@@ -35,8 +65,11 @@ std::pair<std::string, Type> Command::convert(Environment& e, BBlock *out, bool 
   }
   if (name != "io.read" && name != "io.write" && name != "print") {
     return_type = e.get_function(name)->dump_function(e, types);
-  } else if (name == "io.read") {
-    return_type = Type::LONG;
+  } else {
+    std::string format_string = create_format_string(types, name);
+    first = Expression::makeNames();
+    e.store(first, Value(format_string));
+    if (name == "io.read") return_type = Type::LONG;
   }
   if (is_expression) {
     if (return_type == Type::VOID) {
@@ -147,6 +180,37 @@ void define_vars(std::ostream& stream, Environment& e, bool esc_str) {
       stream << pair.second;
     }
     stream << ";" << std::endl;
+  }
+}
+
+void define_vars_asm(std::ostream& stream, Environment& e) {
+  for (Type type : types) {
+    for (auto& var : e.get_all_of_type(type)) {
+      stream << var << ":\t.";
+      if (type == Type::LONG) {
+        stream << "quad 0";
+      } else if (type == Type::DOUBLE){
+        stream << type_as_string(type) << " 0";
+      }
+      stream << std::endl;
+    }
+  }
+  for (auto& pair : e.get_const_values()) {
+    Type type = pair.second.type;
+    stream << pair.first << ":\t.";
+    if (type == Type::STRING) {
+      stream << "string \"" << pair.second << "\"";
+    } else if (type == Type::ARRAY) {
+      auto& array = pair.second.as_array();
+      auto itr = array.begin();
+      stream << "quad " << array.size();
+      for (auto val : array) {
+        stream << std::endl << "\t\t.double " << val;
+      }
+    } else if (type == Type::DOUBLE){
+      stream << "double " << pair.second;
+    }
+    stream << std::endl;
   }
 }
 
@@ -311,13 +375,12 @@ void dump_blocks(BBlock *start, std::ostream& stream, void (BBlock::*func)(std::
  */
 void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
 {
-        stream << R"(#include "stdio.h"
-#include "math.h"
-#include "stdlib.h"
+        stream << ".data" << std::endl;
 
-)";
+        define_vars_asm(stream, e);
 
-        define_vars(stream, e);
+        stream << ".text" << std::endl << ".globl main" << std::endl;
+
         for (auto & pair : e.get_functions()) {
           Function* func = pair.second;
           if (func->first_block) {
@@ -337,17 +400,10 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
           }
         }
 
-        stream << R"(
-int main(int argc, char **argv)
-{
-)";
-        //output_start_of_asm(stream);
+        stream << "main:" << std::endl;
 
-        dump_blocks(start, stream, &BBlock::dump);        
-
-        //output_end_of_asm(stream, vars);
-        //output_vars(stream, e);
-        stream << "}" << std::endl;
+        dump_blocks(start, stream, &BBlock::dump);
+        stream << "\t\tret" << std::endl;
 }
 
 /*

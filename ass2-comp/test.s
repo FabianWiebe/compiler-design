@@ -1,6 +1,6 @@
 .data # gcc test.s -no-pie
-z:      .double 12.4 
-		.double 123
+z:      .double 0
+		.double 123.5
 l:		.quad 27
 str:     .string "value: %u %f %ld %ld\n"
 array:	.quad 3
@@ -23,7 +23,10 @@ continue:
 main: 
 	call test
 	#
-	movq	l, %rdx
+	movq	l, %r12
+	inc %r12
+	movq %r12, l
+	movq   l, %rdx
 	lea array, %r8
 	movq $8, %r9
 	movq (%r8, %r9), %rcx

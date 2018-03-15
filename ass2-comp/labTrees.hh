@@ -33,7 +33,11 @@ void define_vars(std::ostream& stream, std::list<std::string>& var_names, Type t
 void output_vars(std::ostream& stream, Environment& e);
 void output_vars(std::ostream& stream, std::list<std::pair<std::string, Type>>& vars);
 
+std::string create_format_string(const std::list<Type>& types, const std::string& function);
+
 bool is_digits(const std::string &str);
+
+std::string get_jmp_code(const std::string& comp);
 
 std::string combine(const std::list<std::string>& list, const std::string& delimeter = "");
 
@@ -58,33 +62,55 @@ public:
           if (is_digits(str)) {
             return "$" + str;
           }
-          return "\%[" + str + "]";
+          return str;
+        }
+
+        void push_parms_to_reg(std::ostream& stream, const std::list<std::string>& names, const std::list<Type>& types) {
+          std::list<std::string> std_regs{"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+          std::list<std::string> dbl_regs{"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
+          auto std_reg_itr = std_regs.begin();
+          auto dbl_reg_itr = dbl_regs.begin();
+          auto types_itr = types.begin();
+          size_t counter_dbl = 0, counter_std = 0;
+          for (auto itr = names.begin(); itr != names.end(); ++itr, ++types_itr) {
+            if (*types_itr == Type::DOUBLE) {
+              if (dbl_reg_itr == dbl_regs.end()) throw std::invalid_argument( "Can only pass 8 doubles as parameters." );
+              stream << "\t\tmovsd " << *itr << ", %" << *dbl_reg_itr++ << " # double Arg " << ++counter_dbl << std::endl;
+            } else if (*types_itr == Type::STRING) {
+              if (std_reg_itr == std_regs.end()) throw std::invalid_argument( "Can only pass 6 standard parameters. Pushing parameters on stack not implemented." );
+              stream << "\t\tlea " << *itr << ", %" << *std_reg_itr++ << " # Arg " << ++counter_std << std::endl;
+            } else {
+              if (std_reg_itr == std_regs.end()) throw std::invalid_argument( "Can only pass 6 standard parameters. Pushing parameters on stack not implemented." );
+              stream << "\t\tmovq " << format_value(*itr) << ", %" << *std_reg_itr++ << " # Arg " << ++counter_std << std::endl;
+            }
+          }
+          stream << "\t\tmovq $" << counter_dbl <<", %rax # Vec args" << std::endl;
         }
 
         void dump(std::ostream& stream = std::cout)
         {
-                stream << "  /* Expand: " << name << " := ";
+                bool is_comp = op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=";
+                stream << "\t\t# Expand: " << name << " := ";
                 if (op == "call") {
                   stream << op << " " << lhs << "(" << combine(function_parameter_values, ", ") << ") */" << std::endl;                 
                 } else {
-                  stream << lhs << " " << op << " " << rhs << " */" << std::endl;
+                  stream << lhs << " " << op << " " << rhs << std::endl;
                 }
+
                 if (op == "call") {
+                  stream << "\t\tsubq $8, %rsp # Alignment" << std::endl;
                   if (lhs == "io.read") {
-                    stream << "  if (scanf(\"%ld\", &"<< name << ") == EOF) exit(-1);" << std::endl;
+                    std::list<std::string> names{rhs, name};
+                    std::list<Type> types{Type::STRING, Type::STRING}; // 2nd arg is a long address, but string will load the address
+                    push_parms_to_reg(stream, names, types);
+                    stream << "\t\tcall scanf" << std::endl;
                   } else if (lhs == "print" || lhs == "io.write") {
                     std::list<std::string> parms = function_parameter_values;
-                    std::list<std::string> formatted_types;
-                    for (auto& type : function_parameter_types) {
-                      formatted_types.push_back(get_print_parm(type));
-                    }
-                    std::string delimeter = "", end_line = "";
-                    if (lhs == "print") {
-                      delimeter = "\\t";
-                      end_line = "\\n";
-                    }
-                    parms.push_front(std::string("\"") + combine(formatted_types, delimeter) + end_line + "\"");
-                    stream << "  printf(" << combine(parms, ", ") << ");" << std::endl;
+                    parms.push_front(rhs);
+                    std::list<Type> types = function_parameter_types;
+                    types.push_front(Type::STRING);
+                    push_parms_to_reg(stream, parms, types);
+                    stream << "\t\tcall printf" << std::endl;
                   } else { // function call
                     if (!parms_for_stack.empty()) {
                       stream << "  /* pushing function variables to stack: ";
@@ -97,103 +123,98 @@ public:
                     if (ret_type != Type::VOID) save_return = name + " = ";
                     stream << "  " << save_return << lhs << "(" << combine(function_parameter_values, ", ") << ");" << std::endl;
                   }
+                  stream << "\t\taddq $8, %rsp # Alignment" << std::endl << std::endl;
                 } else if (op == "return") {
                   stream << "  return " << lhs << ";" << std::endl;
-                } else if (op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=") {  
-                  stream << "  " << name << " = " << lhs << " " << op << (op == "/" ? "(double)" : "")<< " " << rhs << ";" << std::endl;
                 } else {
 
                   bool double_op = op == "/" || l_type == Type::DOUBLE || r_type == Type::DOUBLE || ret_type == Type::DOUBLE;
-                  std::set<std::pair<std::string, Type>> vars;
-                  vars.emplace(name, ret_type);
-                  if (!is_digits(lhs)) vars.emplace(lhs, l_type);
-                  if (!is_digits(rhs)) vars.emplace(rhs, r_type);
-                  output_start_of_asm(stream);
                     if (double_op) {
                       if (l_type == Type::DOUBLE) {
-                        stream << "\" movsd " << format_value(lhs) << ", \%\%xmm0\\n\\t\"" << std::endl;                        
+                        stream << "\t\tmovsd " << lhs << ", %xmm0" << std::endl;                        
                       } else if (l_type == Type::LONG) {
-                        stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
-                        stream << "\" cvtsi2sdq \%\%rax, \%\%xmm0\\n\\t\"" << std::endl;
+                        stream << "\t\tmovq " << format_value(lhs) << ", %rax" << std::endl;
+                        stream << "\t\tcvtsi2sdq %rax, %xmm0" << std::endl;
                       }
                       if (r_type == Type::DOUBLE) {
-                        stream << "\" movsd " << format_value(rhs) << ", \%\%xmm1\\n\\t\"" << std::endl;                        
+                        stream << "\t\tmovsd " << rhs << ", %xmm1" << std::endl;                        
                       } else if (r_type == Type::LONG) {
-                        stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" cvtsi2sdq \%\%rbx, \%\%xmm1\\n\\t\"" << std::endl;
+                        stream << "\t\tmovq " << format_value(rhs) << ", %rbx" << std::endl;
+                        stream << "\t\tcvtsi2sdq %rbx, %xmm1" << std::endl;
                       }
                       if (op == "c") {
-                        stream << "/* copy is a dummy operation */" << std::endl;
+                        stream << "\t\t# copy is a dummy operation" << std::endl;
                       } else if (op == "+") {
-                        stream << "\" addsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                        stream << "\t\taddsd %xmm1, %xmm0" << std::endl;
                       } else if (op == "-") {
-                        stream << "\" subsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                        stream << "\t\tsubsd %xmm1, %xmm0" << std::endl;
                       } else if (op == "*") {
-                        stream << "\" mulsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                        stream << "\t\tmulsd %xmm1, %xmm0" << std::endl;
                       } else if (op == "/") {
-                        stream << "\" divsd \%\%xmm1, \%\%xmm0\\n\\t\"" << std::endl;
+                        stream << "\t\tdivsd %xmm1, %xmm0" << std::endl;
                       } else if (op == "c[]") {
                         // name = lhs [rhs]
-                        //stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" movq $8, \%\%rax\\n\\t\"" << std::endl;
-                        stream << "\" mul \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" lea " << format_value(lhs) << ", \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" movsd (\%\%rax, \%\%rbx), \%\%xmm0\\n\\t\"" << std::endl;
+                        //stream << "\t\tdec %rbx" << std::endl;
+                        stream << "\t\tmovq $8, %rax" << std::endl;
+                        stream << "\t\tmul %rbx" << std::endl;
+                        stream << "\t\tlea " << format_value(lhs) << ", %rbx" << std::endl;
+                        stream << "\t\tmovsd (%rax, %rbx), %xmm0" << std::endl;
                       } else if (op == "[]c") {
                         // name [rhs] = lhs
-                        //stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" movq $8, \%\%rax\\n\\t\"" << std::endl;
-                        stream << "\" mul \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" lea " << format_value(name) << ", \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" movsd \%\%xmm0, (\%\%rax, \%\%rbx)\\n\\t\"" << std::endl;
+                        //stream << "\t\tdec %rbx" << std::endl;
+                        stream << "\t\tmovq $8, %rax" << std::endl;
+                        stream << "\t\tmul %rbx" << std::endl;
+                        stream << "\t\tlea " << format_value(name) << ", %rbx" << std::endl;
+                        stream << "\t\tmovsd %xmm0, (%rax, %rbx)" << std::endl;
+                      } else if (is_comp) {  
+                        stream << "\t\tcomisd %xmm1, %xmm0" << std::endl; //cmppd
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
-                      if (ret_type != Type::ARRAY) stream << "\" movsd \%\%xmm0, " << format_value(name) << "\\n\\t\"" << std::endl;
+                      if (ret_type != Type::ARRAY && !is_comp) stream << "\t\tmovsd %xmm0, " << format_value(name) << std::endl;
+                      stream << std::endl;
 
                     } else {
-                      if (l_type != Type::ARRAY) stream << "\" movq " << format_value(lhs) << ", \%\%rax\\n\\t\"" << std::endl;
-                      if (r_type != Type::ARRAY) stream << "\" movq " << format_value(rhs) << ", \%\%rbx\\n\\t\"" << std::endl;
+                      if (l_type != Type::ARRAY) stream << "\t\tmovq " << format_value(lhs) << ", %rax" << std::endl;
+                      if (r_type != Type::ARRAY) stream << "\t\tmovq " << format_value(rhs) << ", %rbx" << std::endl;
                       if (op == "c") {
-                        stream << "/* copy is a dummy operation */" << std::endl;
+                        stream << "\t\t# copy is a dummy operation" << std::endl;
                       } else if (op == "+") {
-                        stream << "\" addq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\t\taddq %rbx, %rax" << std::endl;
                       } else if (op == "-") {
-                        stream << "\" subq \%\%rbx, \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\t\tsubq %rbx, %rax" << std::endl;
                       } else if (op == "*") {
-                        stream << "\" mul \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\t\tmul %rbx" << std::endl;
                       } else if (op == "/") {
-                        stream << "\" movq $0, \%\%rdx\\n\\t\"" << std::endl;
-                        stream << "\" div \%\%rbx\\n\\t\"" << std::endl;
+                        stream << "\t\tmovq $0, %rdx" << std::endl;
+                        stream << "\t\tdiv %rbx" << std::endl;
                       } else if (op == "%") {
-                        stream << "\" movq $0, \%\%rdx\\n\\t\"" << std::endl;
-                        stream << "\" div \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" movq \%\%rdx, \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\t\tmovq $0, %rdx" << std::endl;
+                        stream << "\t\tdiv %rbx" << std::endl;
+                        stream << "\t\tmovq %rdx, %rax" << std::endl;
                       } else if (op == "++") {
-                        stream << "\" inc \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\t\tinc %rax" << std::endl;
                       } else if (op == "!") {
-                        stream << "\" xorq $1, \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\t\txorq $1, %rax" << std::endl;
                       }  else if (op == "^") {
-                        stream << "\" movq \%\%rax, \%\%rcx\\n\\t\"" << std::endl;
-                        stream << "\"pow_loop:\\n\\t\"" << std::endl;
-                        stream << "\" cmp $1, \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" jbe pow_cont\\n\\t\"" << std::endl;
-                        stream << "\" dec \%\%rbx\\n\\t\"" << std::endl;
-                        stream << "\" mul \%\%rcx\\n\\t\"" << std::endl;
-                        stream << "\" jmp pow_loop\\n\\t\"" << std::endl;
-                        //stream << "\" call pow\\n\\t\"" << std::endl;
-                        stream << "\"pow_cont:\\n\\t\"" << std::endl;
+                        stream << "\t\tmovq %rax, %rcx" << std::endl;
+                        stream << "pow_loop:" << std::endl;
+                        stream << "\t\tcmp $1, %rbx" << std::endl;
+                        stream << "\t\tjbe pow_cont" << std::endl;
+                        stream << "\t\tdec %rbx" << std::endl;
+                        stream << "\t\tmul %rcx" << std::endl;
+                        stream << "\t\tjmp pow_loop" << std::endl;
+                        //stream << "\t\tcall pow" << std::endl;
+                        stream << "pow_cont:" << std::endl;
                       } else if (op == "#") {
-                        stream << "\" movsd " << format_value(lhs) << ", \%\%xmm0\\n\\t\"" << std::endl;
-                        stream << "\" cvttsd2siq \%\%xmm0, \%\%rax\\n\\t\"" << std::endl;
+                        stream << "\t\tmovq " << lhs << ", %rax" << std::endl;
+                      } else if (is_comp) {  
+                        stream << "\t\tcmp %rbx, %rax" << std::endl;
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
-                      stream << "\" movq \%\%rax, " << format_value(name) << "\\n\\t\"" << std::endl << std::endl;
+                      stream << "\t\tmovq %rax, " << format_value(name) << std::endl << std::endl;
                     }
-                  std::list<std::pair<std::string, Type>> vars_as_list(vars.begin(), vars.end());
-                  output_end_of_asm(stream, vars_as_list);
-                  //output_vars(stream, vars_as_list);
                 }
         }
         std::string escape_quotes(const std::string& str) {
@@ -220,16 +241,7 @@ public:
                     stream << "  if (scanf(\\\"%ld\\\", &"<< name << ") == EOF) exit(-1);" << std::endl;
                   } else if (lhs == "print" || lhs == "io.write") {
                     std::list<std::string> parms = function_parameter_values;
-                    std::list<std::string> formatted_types;
-                    for (auto& type : function_parameter_types) {
-                      formatted_types.push_back(get_print_parm(type));
-                    }
-                    std::string delimeter = "", end_line = "";
-                    if (lhs == "print") {
-                      delimeter = "\\\\t";
-                      end_line = "\\\\n";
-                    }
-                    parms.push_front(std::string("\\\"") + combine(formatted_types, delimeter) + end_line + "\\\"");
+                    parms.push_front(std::string("\\\"") + create_format_string(function_parameter_types, lhs) + "\\\"");
                     stream << "  printf(" << combine(parms, ", ") << ");" << std::endl;
                   } else { // function call
                     if (!parms_for_stack.empty()) {
@@ -282,30 +294,18 @@ public:
 
         void dump(std::ostream& stream = std::cout)
         {
-                stream << "/* BBlock @ " << name << " */" << std::endl;
-                //stream << "\"" << name << ":\\n\\t\"" << std::endl;
                 stream << name << ":" << std::endl;
-                if (instructions.empty()) {
-                  //stream << "\" nop\\n\\t\"" << std::endl;
-                }
                 for (auto i : instructions) {
                         i.dump(stream);
                 }
                 if (instructions.empty() && !tExit) {
-                  stream << "  return 0;" << std::endl;
+                  stream << "\t\tret" << std::endl;
                 }
-                if (fExit) {
-                  stream << "  if(" << instructions.back().name << ")" << std::endl;
-                }
-                stream << "  /* True:    " << (tExit ? tExit->name : "0") << " */" << std::endl;
                 if (tExit) {
-                  //stream << "\" " << (cond_jump.empty() ? "jmp" : cond_jump) << " " << tExit->name << "\\n\\t\"" << std::endl;
-                  stream << "  goto " << tExit->name << ";" << std::endl;
+                  stream << "\t\t" << (cond_jump.empty() ? "jmp" : get_jmp_code(cond_jump)) << " " << tExit->name << " # True" << std::endl;
                 }
-                stream << "  /* False:   " << (fExit ? fExit->name : "0")  << " */" << std::endl;
                 if (fExit) {
-                  //stream << "\" jmp " << fExit->name << "\\n\\t\"" << std::endl;
-                  stream << "  else goto " << fExit->name << ";" << std::endl;
+                  stream << "\t\tjmp " << fExit->name << " # False" << std::endl;
                 }
         }
         void dumpCFG(std::ostream& stream = std::cout)
@@ -353,7 +353,7 @@ public:
           // Virtual (but not pure) to allow overriding in the leaves.
           return "_t" + std::to_string(tmp_counter++);
         }
-        virtual std::pair<std::string, Type> convert(Environment& e, BBlock*) = 0; // Lecture 8 / slide 12.
+        virtual std::pair<std::string, Type> convert(Environment& e, BBlock* out) = 0; // Lecture 8 / slide 12.
         
         virtual void dump(std::ostream& stream=std::cout, int depth = 0) = 0;
 
@@ -583,23 +583,10 @@ public:
           std::tie(left, left_type) = lhs->convert(e, out);
           std::tie(right, right_type) = rhs->convert(e, out);
           out->instructions.emplace_back(gen_name, name, left, right, left_type, right_type, Type::LONG);
-          if (name == "==") {
-            out->cond_jump = "je";
-          } else if (name == "!=") {
-            out->cond_jump = "jne";
-          } else if (name == "<") {
-            out->cond_jump = "jl";
-          } else if (name == ">") {
-            out->cond_jump = "ja";
-          } else if (name == "<=") {
-            out->cond_jump = "jbe";
-          } else if (name == ">=") {
-            out->cond_jump = "jae";
-          } 
+          out->cond_jump = name;
           return {gen_name, Type::LONG};
         }
         virtual void dump(std::ostream& stream=std::cout, int depth = 0) {
-          indent(stream, depth) << name << std::endl;
           lhs->dump(stream, depth+1);
           rhs->dump(stream, depth+1);
         }
