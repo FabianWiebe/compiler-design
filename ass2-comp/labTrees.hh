@@ -41,6 +41,8 @@ std::string get_jmp_code(const std::string& comp);
 
 std::string combine(const std::list<std::string>& list, const std::string& delimeter = "");
 
+std::string escape_new_lines(const std::string& str);
+
 
 /************* Three Address Instructions *************/
 class ThreeAd
@@ -253,7 +255,7 @@ public:
                     stream << "  if (scanf(\\\"%ld\\\", &"<< name << ") == EOF) exit(-1);" << std::endl;
                   } else if (lhs == "print" || lhs == "io.write") {
                     std::list<std::string> parms = function_parameter_values;
-                    parms.push_front(std::string("\\\"") + create_format_string(function_parameter_types, lhs) + "\\\"");
+                    parms.push_front(std::string("\\\"") + escape_new_lines(create_format_string(function_parameter_types, lhs)) + "\\\"");
                     stream << "  printf(" << combine(parms, ", ") << ");" << std::endl;
                   } else { // function call
                     if (!parms_for_stack.empty()) {
