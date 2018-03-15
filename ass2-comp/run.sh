@@ -1,12 +1,12 @@
 #!/bin/bash
 make
-for i in `seq 5 5`;
+for i in `seq 1 6`;
 do
 	echo "test case $i:"
 	./comp test_case_$i.lua
 	gcc target.s -no-pie -o target -g
 	echo "10" | ./target
-	#echo "10" | lua5.3 test_case_$i.lua
+	echo "10" | lua5.3 test_case_$i.lua
 	dot cfg.dot -Ocfg$i.svg -Tsvg
 	echo ""
 done

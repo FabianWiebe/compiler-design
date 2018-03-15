@@ -122,8 +122,8 @@ public:
                     stream << "\t\tcall " << lhs << std::endl;
                     if (!parms_for_stack.empty()) {
                       stream << "\t\t# popping function variables from stack " << std::endl;
-                      for (auto & pair : parms_for_stack) {
-                        stream << "\t\tpopq " << pair.first << " # " << type_as_string(pair.second) << std::endl;
+                      for (auto itr = parms_for_stack.rbegin(); itr !=  parms_for_stack.rend(); ++itr) {
+                        stream << "\t\tpopq " << itr->first << " # " << type_as_string(itr->second) << std::endl;
                       }
                     }
                     if (ret_type != Type::VOID) {
@@ -225,7 +225,7 @@ public:
                       } else {
                         stream << "/* not implemented case Type::" << op << " */" << std::endl;
                       }
-                      if (!is_comp) stream << "\t\tmovq %rax, " << name << std::endl << std::endl;
+                      stream << "\t\tmovq %rax, " << name << std::endl << std::endl;
                     }
                 }
         }
