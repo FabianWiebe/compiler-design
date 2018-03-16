@@ -5,7 +5,7 @@ do
 	echo "test case $i:"
 	./comp test_case_$i.lua
 	#gcc target.s -no-pie -o target -g
-	as ./target.s -o target.o
+	as ./target-raw.s -o target.o
 	ld target.o -o target
 	echo "10" | ./target
 	echo "10" | lua5.3 test_case_$i.lua

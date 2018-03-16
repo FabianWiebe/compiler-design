@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 		//dump_asm(first_block);
 		
 		std::ofstream asm_file;
-		asm_file.open("target.s");
+		asm_file.open("target-raw.s");
 		dumpASM(env, first_block, asm_file);
 		asm_file.close();
 
