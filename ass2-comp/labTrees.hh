@@ -108,16 +108,15 @@ public:
                     if (r_type == Type::LONG || r_type == Type::DOUBLE) {
                       push_parms_to_reg(stream, function_parameter_values, function_parameter_types);
                       stream << "\t\tcall fpconv" << std::endl;
-                      stream << "\t\tmovq %rax, %rdi # parm 1" << std::endl;
-                      stream << "\t\tmovq $0, %rax # Vec args" << std::endl;
+                      stream << "\t\tmovq %rax, %rsi # address of sring" << std::endl;
+                      stream << "\t\tmovq $32, %rdx # number of bytes" << std::endl;
                     } else {
-                      std::list<std::string> parms = function_parameter_values;
-                      parms.push_front("_print_" + type_as_string(r_type));
-                      std::list<Type> types = function_parameter_types;
-                      types.push_front(Type::STRING);
-                      push_parms_to_reg(stream, parms, types);
+                      stream << "\t\tlea " << rhs << ", %rsi # address of sring" << std::endl;
+                      stream << "\t\tmovq " << rhs << "_length, %rdx # number of bytes" << std::endl;
                     }
-                    stream << "\t\tcall printf" << std::endl;
+                    stream << "\t\tmovq $1, %rax # system call for write" << std::endl;
+                    stream << "\t\tmovq $1, %rdi # file handle is stdout" << std::endl;
+                    stream << "\t\tsyscall" << std::endl;
                   } else { // function call
                     if (!parms_for_stack.empty()) {
                       stream << "\t\t# pushing function variables to stack" << std::endl;

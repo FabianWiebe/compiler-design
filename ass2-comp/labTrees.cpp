@@ -241,7 +241,8 @@ void define_vars_asm(std::ostream& stream, Environment& e) {
     Type type = pair.second.type;
     stream << pair.first << ":\t.";
     if (type == Type::STRING) {
-      stream << "string \"" << pair.second << "\"";
+      stream << "string \"" << pair.second << "\"" << std::endl;
+      stream << pair.first << "_length:\t.quad " << pair.second.as_string().size();
     } else if (type == Type::ARRAY) {
       auto& array = pair.second.as_array();
       auto itr = array.begin();
