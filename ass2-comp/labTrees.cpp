@@ -453,7 +453,7 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
           define_function_vars_asm(stream, func->parameter_names, func->parameter_types);
         }
 
-        stream << ".text" << std::endl << ".globl main" << std::endl;
+        stream << ".text" << std::endl << ".globl _start" << std::endl;
         if (e.pow_used) {
           stream << "pow: # pow function begin" << std::endl;
           stream << "\t\tmovq %rdi, %rax" << std::endl;
@@ -547,8 +547,7 @@ fpconv:
             stream << "\t\tret # " << func->name << " function end" << std::endl;
           }
         }
-
-        stream << "main: # main begin" << std::endl;
+        stream << "_start: # main begin" << std::endl;
 
         dump_blocks(start, stream, &BBlock::dump);
 

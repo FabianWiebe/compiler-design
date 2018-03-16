@@ -4,7 +4,9 @@ for i in `seq 1 9`;
 do
 	echo "test case $i:"
 	./comp test_case_$i.lua
-	gcc target.s -no-pie -o target -g
+	#gcc target.s -no-pie -o target -g
+	as ./target.s -o target.o
+	ld target.o -o target
 	echo "10" | ./target
 	echo "10" | lua5.3 test_case_$i.lua
 	dot cfg.dot -Ocfg$i.svg -Tsvg
