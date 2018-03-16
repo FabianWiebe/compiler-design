@@ -109,7 +109,7 @@ public:
                       push_parms_to_reg(stream, function_parameter_values, function_parameter_types);
                       stream << "\t\tcall fpconv" << std::endl;
                       stream << "\t\tmovq %rax, %rsi # address of sring" << std::endl;
-                      stream << "\t\tmovq $32, %rdx # number of bytes" << std::endl;
+                      stream << "\t\tmovq %rdx, %rdx # number of bytes" << std::endl;
                     } else {
                       stream << "\t\tlea " << rhs << ", %rsi # address of sring" << std::endl;
                       stream << "\t\tmovq " << rhs << "_length, %rdx # number of bytes" << std::endl;

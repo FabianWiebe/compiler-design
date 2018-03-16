@@ -527,9 +527,13 @@ fpconv:
     movb %dl, (%rdi, %rcx) # push to buf
     incq %rcx # ++index
     jmp .fpconv_dec_loop
-.fpconv_ret: 
-    movb $0, (%rdi, %rcx) # null value
+.fpconv_ret:
+    # movb $0, (%rdi, %rcx) # null value
+    # incq %rcx # ++index
+    # cmpq $32, %rcx
+    # jl .fpconv_ret
     movq %rdi, %rax # return value
+    movq %rcx, %rdx # 2nd return val, number of bytes
     ret
 )";
         }
@@ -548,7 +552,11 @@ fpconv:
 
         dump_blocks(start, stream, &BBlock::dump);
 
-        stream << "\t\tret # main end" << std::endl;
+        stream << "\t\t# exit(0)" << std::endl;
+        stream << "\t\tmovq $60, %rax # syscal call for exit" << std::endl;
+        stream << "\t\txorq $0, %rdi # return code" << std::endl;
+        stream << "\t\tsyscall" << std::endl;
+        stream << "\t\t# main end" << std::endl;
 }
 
 /*

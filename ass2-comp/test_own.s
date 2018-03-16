@@ -1,6 +1,6 @@
 .data
 _t0:	.double 2.3
-_t2:	.quad 12356
+_t2:	.quad 898
 _t1:	.string "\n"
 _print_string:	.string "%s"
 _print_double:	.string "%lg"
@@ -77,7 +77,7 @@ fpconv:
 
 main: # main begin
 blk0: # block blk0 begin
-		movq $1, %rax # Vec args
+		movq $0, %rax # Vec args
 		movq _t2, %rdi # Vec args
 		movsd _t0, %xmm0 # double Arg 1
 		call fpconv
