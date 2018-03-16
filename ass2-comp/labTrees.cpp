@@ -255,8 +255,8 @@ void define_vars_asm(std::ostream& stream, Environment& e) {
     }
     stream << std::endl;
   }
-  if (e.convert_num_to_string) {
-    stream << "\t\t.lcomm _fpconv_buf, 32 # used for double/long to string conversion in fpconv" << std::endl;
+  if (e.convert_num_to_string || e.read_used) {
+    stream << "\t\t.lcomm _library_buf, 32 # used for double/long to string conversion in fpconv" << std::endl;
   }
   // will be delted when libc is removed:
   stream << "_print_string:\t.string \"%s\"" << std::endl;
@@ -471,7 +471,7 @@ void dumpASM(Environment& e, BBlock *start, std::ostream& stream)
 fpconv:
     movq %rax, %r11
     movq %rdi, %rax
-    lea _fpconv_buf, %rdi
+    lea _library_buf, %rdi
     xorq %rcx, %rcx # index = 0
     movq $10, %rsi
     testq %r11, %r11 # check if long or double
@@ -535,7 +535,45 @@ fpconv:
     movq %rdi, %rax # return value
     movq %rcx, %rdx # 2nd return val, number of bytes
     ret
+
 )";
+        }
+        if (e.read_used) {
+          stream << R"X(
+stoi: # rdi = address buffer, rsi = read bytes
+    testq %rsi, %rsi
+    je .stoi_error
+    xorq %rax, %rax # number
+    xorq %r8, %r8 # i
+    xorq %r9, %r9
+    movq $10, %r10
+    movb (%rdi, %r8), %r9b
+    cmpq $48, %r9
+    jb .stoi_error
+    cmpq $57, %r9
+    jg .stoi_error
+.stoi_loop:
+    subq $48, %r9
+    mulq %r10
+    addq %r9, %rax
+    inc %r8
+    movb (%rdi, %r8), %r9b
+    cmpq $48, %r9
+    jb .stoi_ret
+    cmpq $57, %r9
+    jg .stoi_ret
+    jmp .stoi_loop
+.stoi_ret:
+    ret
+.stoi_error:
+        # exit(-1)" << std::endl;
+        movq $60, %rax # syscal call for exit" << std::endl;
+        movq $1, %rdi # return code" << std::endl;
+        decq %rdi
+        syscall
+        # end of stoi
+
+)X";
         }
 
         for (auto & pair : e.get_functions()) {
@@ -553,7 +591,7 @@ fpconv:
 
         stream << "\t\t# exit(0)" << std::endl;
         stream << "\t\tmovq $60, %rax # syscal call for exit" << std::endl;
-        stream << "\t\txorq $0, %rdi # return code" << std::endl;
+        stream << "\t\tmovq $0, %rdi # return code" << std::endl;
         stream << "\t\tsyscall" << std::endl;
         stream << "\t\t# main end" << std::endl;
 }

@@ -100,10 +100,15 @@ public:
                 if (op == "call") {
                   stream << "\t\tpushq %rbp # Alignment" << std::endl;
                   if (lhs == "scanf") {
-                    std::list<std::string> names{rhs, name};
-                    std::list<Type> types{Type::STRING, Type::STRING}; // 2nd arg is a long address, but string will load the address
-                    push_parms_to_reg(stream, names, types);
-                    stream << "\t\tcall scanf" << std::endl;
+                    stream << "\t\tmovq $0, %rax # syscall number" << std::endl;
+                    stream << "\t\tmovq $0, %rdi # stdin file descriptor" << std::endl;
+                    stream << "\t\tlea _library_buf, %rsi # address of the buffer" << std::endl;
+                    stream << "\t\tmovq $32, %rdx # size of the buffer" << std::endl;
+                    stream << "\t\tsyscall # call scan" << std::endl;
+                    stream << "\t\tlea _library_buf, %rdi" << std::endl;
+                    stream << "\t\tmovq %rax, %rsi" << std::endl;
+                    stream << "\t\tcall stoi # call own library" << std::endl;
+                    stream << "\t\tmovq %rax, " << name << " # save result" << std::endl;
                   } else if (lhs == "printf") {
                     if (r_type == Type::LONG || r_type == Type::DOUBLE) {
                       push_parms_to_reg(stream, function_parameter_values, function_parameter_types);

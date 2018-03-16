@@ -77,7 +77,7 @@ fpconv:
 
 main: # main begin
 blk0: # block blk0 begin
-		movq $0, %rax # Vec args
+		movq $1, %rax # Vec args
 		movq _t2, %rdi # Vec args
 		movsd _t0, %xmm0 # double Arg 1
 		call fpconv
