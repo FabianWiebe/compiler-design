@@ -98,13 +98,16 @@ public:
                 }
 
                 if (op == "call") {
-                  stream << "\t\tsubq $8, %rsp # Alignment" << std::endl;
+                  stream << "\t\tpushq %rbp # Alignment" << std::endl;
                   if (lhs == "scanf") {
                     std::list<std::string> names{rhs, name};
                     std::list<Type> types{Type::STRING, Type::STRING}; // 2nd arg is a long address, but string will load the address
                     push_parms_to_reg(stream, names, types);
                     stream << "\t\tcall scanf" << std::endl;
                   } else if (lhs == "printf") {
+                    if (l_type == Type::LONG || l_type == Type::DOUBLE) {
+
+                    }
                     std::list<std::string> parms = function_parameter_values;
                     parms.push_front("_print_" + type_as_string(r_type));
                     std::list<Type> types = function_parameter_types;
@@ -134,7 +137,7 @@ public:
                       }
                     }
                   }
-                  stream << "\t\taddq $8, %rsp # Alignment" << std::endl << std::endl;
+                  stream << "\t\tpopq %rbp # Alignment" << std::endl << std::endl;
                 } else if (op == "return") {
                   if (ret_type != Type::VOID) {
                     if (ret_type == Type::DOUBLE) {

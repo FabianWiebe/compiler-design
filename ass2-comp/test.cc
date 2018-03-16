@@ -22,56 +22,10 @@ void double_to_char(double num, char buf[]) {
 	  	buf[j] = buf[i-1  - j];
 	  	buf[i-1 - j] = t;
 	}
-	//printf("%s\n", buf);
-	if (num == (double)(int) num) {
-		buf[i++] = 0;
-		return;	
-	}
-	buf[i++] = '.';
-	float fracs = num * 10.0;
-	for (int j = 0; fracs != 0 && j < 5; j++)
-	{	
-		buf[i++] = ((uint)fracs)%10 + '0';
-		fracs -= (int) fracs;
-		fracs *= 10.0;
-	}
-	buf[i++] = 0;
+	return;
 }
-
-double char_to_double(char buf[]) {
-	double x = 0;
-	int i;
-	//printf("%s\n", buf);
-	for (i = 0; buf[i] != '.' && buf[i] != 0; i++) 
-	{
-		x *= 10;
-		x += buf[i] - '0';
-	}
-	if (buf[i] == 0) {
-		return x;
-	}
-	++i;
-	printf("string = %s, i = %d, double = %lf\n", &buf[i], i, x);
-	int j;
-	int divisor = 1;
-	for (j = 0; buf[i] != 0; i++, ++j) 
-	{
-		x *= 10;
-		x += buf[i] - '0';
-		divisor *= 10;
-	}
-	printf("j = %d, double = %lf\n\n", j, x);
-	x /= divisor;
-	return x;
-}
-
-
 int main() {
-	double num = 256.8;
 	char buf[20] = "abcdefghijklmno";
-	double_to_char(num, buf);
+	double_to_char(34.56, buf);
 	printf("%s\n", buf);
-	num = -1;
-	num = char_to_double(buf);
-	printf("%lf\n", num);
 }
