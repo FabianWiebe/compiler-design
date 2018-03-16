@@ -1,5 +1,5 @@
 .data
-_t0:	.double 123.456
+_t0:	.double 2.3
 _t2:	.quad 12356
 _t1:	.string "\n"
 _print_string:	.string "%s"
@@ -19,7 +19,6 @@ fpconv:
 		testq %r11, %r11 # check if long or double
 		jz .fpconv_first_loop
 		cvttsd2siq %xmm0, %rax # paramter in xmm0
-		cvtsi2sdq %rax, %xmm1 # floor in xmm1
 .fpconv_first_loop:
 		testq %rax, %rax # rax == 0
 		jz .fpconv_done
@@ -30,15 +29,13 @@ fpconv:
 		incq %rcx # ++index
 		jmp .fpconv_first_loop
 .fpconv_done:
-		xorq %rdx, %rdx # zero out high part of div
-		movq %rcx, %rax
-		movq $2, %r10
-		divq %r10 # in rax is index / 2
+		movq %rcx, %rsi
+		sarq %rsi
 		decq %rcx # --index
 		xorq %r8, %r8 # r8 = j
 .fpconv_revers:
-		cmp %r10, %r8
-		jae .fpconv_end_revers
+		testq %rsi, %rsi
+		je .fpconv_end_revers
 		movq %rcx, %r9 # copy index
 		subq %r8, %r9 # r9 = index - j
 		movb (%rdi, %r8), %al
@@ -46,25 +43,30 @@ fpconv:
 		movb %al, (%rdi, %r9)
 		movb %dl, (%rdi, %r8)
 		incq %r8 # ++j
+		decq %rsi
 		jmp .fpconv_revers
 .fpconv_end_revers:
 		incq %rcx # ++indx
 		testq %r11, %r11 # check if long or double
-		jz .fpconv_ret # skip decimals, if long
+		je .fpconv_ret # skip decimals, if long
 		movb $46, (%rdi, %rcx) # dot
 		incq %rcx
-		subsd %xmm1, %xmm0 # mod 1
-		cvtsi2sdq %rsi, %xmm2 # move 10 floats
+		movq $1, %rsi
+		movq $10, %r8
 		movq $6, %r9 # 5 decimal places
 .fpconv_dec_loop:
-		dec %r9
+		decq %r9
 		jz .fpconv_ret
-		mulsd %xmm2, %xmm0 # * 10
-		cvttsd2siq %xmm0, %rax # paramter in xmm0
-		cvtsi2sdq %rax, %xmm1 # floor()
-		subsd %xmm1, %xmm0 # mod 1
-		addb $48, %al
-		movb %al, (%rdi, %rcx) # push to buf
+		movq %rsi, %rax
+		mulq %r8
+		movq %rax, %rsi
+		cvtsi2sdq %rsi, %xmm1
+		mulsd %xmm0, %xmm1 # paramter in xmm0
+		cvttsd2siq %xmm1, %rax
+		xorq %rdx, %rdx
+		divq %r8
+		addb $48, %dl
+		movb %dl, (%rdi, %rcx) # push to buf
 		incq %rcx # ++index
 		jmp .fpconv_dec_loop
 .fpconv_ret: 
@@ -75,7 +77,7 @@ fpconv:
 
 main: # main begin
 blk0: # block blk0 begin
-		movq $0, %rax # Vec args
+		movq $1, %rax # Vec args
 		movq _t2, %rdi # Vec args
 		movsd _t0, %xmm0 # double Arg 1
 		call fpconv

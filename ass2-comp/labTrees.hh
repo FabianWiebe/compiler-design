@@ -105,14 +105,18 @@ public:
                     push_parms_to_reg(stream, names, types);
                     stream << "\t\tcall scanf" << std::endl;
                   } else if (lhs == "printf") {
-                    if (l_type == Type::LONG || l_type == Type::DOUBLE) {
-
+                    if (r_type == Type::LONG || r_type == Type::DOUBLE) {
+                      push_parms_to_reg(stream, function_parameter_values, function_parameter_types);
+                      stream << "\t\tcall fpconv" << std::endl;
+                      stream << "\t\tmovq %rax, %rdi # parm 1" << std::endl;
+                      stream << "\t\tmovq $0, %rax # Vec args" << std::endl;
+                    } else {
+                      std::list<std::string> parms = function_parameter_values;
+                      parms.push_front("_print_" + type_as_string(r_type));
+                      std::list<Type> types = function_parameter_types;
+                      types.push_front(Type::STRING);
+                      push_parms_to_reg(stream, parms, types);
                     }
-                    std::list<std::string> parms = function_parameter_values;
-                    parms.push_front("_print_" + type_as_string(r_type));
-                    std::list<Type> types = function_parameter_types;
-                    types.push_front(Type::STRING);
-                    push_parms_to_reg(stream, parms, types);
                     stream << "\t\tcall printf" << std::endl;
                   } else { // function call
                     if (!parms_for_stack.empty()) {
@@ -141,7 +145,7 @@ public:
                 } else if (op == "return") {
                   if (ret_type != Type::VOID) {
                     if (ret_type == Type::DOUBLE) {
-                      stream << "\t\tmovsd " << lhs << ", %xmm0 # return value" << std::endl;
+                      stream << "\t\tmovq " << lhs << ", %xmm0 # return value" << std::endl;
                     } else {
                       stream << "\t\tmovq " << format_value(lhs) << ", %rax # return value" << std::endl;
                     }
