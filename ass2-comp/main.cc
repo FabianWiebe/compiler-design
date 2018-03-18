@@ -21,28 +21,23 @@ int main(int argc, char **argv)
 	if (argc > 1) {
 		fclose(yyin);
 	}
-	if (!result) {
-		//root->dump();
-		//std::cout << std::endl;
-		Environment env;
-		Statement *current_test = root;
-		BBlock *first_block = new BBlock();
-		//current_test->dump();
-		current_test->convert(env, first_block);
-		//current_test->dump();
-		//dump_asm(first_block);
-		
-		std::ofstream asm_file;
-		asm_file.open("target-raw.s");
-		dumpASM(env, first_block, asm_file);
-		asm_file.close();
+	if (result) return -1;
 
-		std::ofstream parse_tree_file;
-		parse_tree_file.open("cfg.dot");
-		dumpCFG(env, first_block, parse_tree_file);
-		parse_tree_file.close();
-		
-		//std::cout << e;
-	}
+	Environment env;
+	Statement *current_test = root;
+	BBlock *first_block = new BBlock();
+	//root->dump();
+	root->convert(env, first_block);
+	//std::cout << env;
+	
+	std::ofstream asm_file;
+	asm_file.open("target-raw.s");
+	dumpASM(env, first_block, asm_file);
+	asm_file.close();
+
+	std::ofstream parse_tree_file;
+	parse_tree_file.open("cfg.dot");
+	dumpCFG(env, first_block, parse_tree_file);
+	parse_tree_file.close();
 	return 0;
 }

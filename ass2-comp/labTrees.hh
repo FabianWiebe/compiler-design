@@ -261,7 +261,9 @@ public:
                   stream << "  " << name << " = " << lhs << ";" << std::endl;
                 } else if (op == "call") {
                   if (lhs == "scanf") {
-                    stream << "  if (scanf(\\\"%ld\\\", &"<< name << ") == EOF) exit(-1);" << std::endl;
+                    stream << "  if (scanf(\\\"%ld\\\", &"<< name << ") == EOF)" << std::endl;
+                    stream << "{ printf(\\\"EOF during read from standard input\\\\n\\\"); " << std::endl;
+                    stream << "exit(-1); }" << std::endl;
                   } else if (lhs == "printf") {
                     std::list<std::string> parms = function_parameter_values;
                     parms.push_front(std::string("\\\"") + escape_new_lines(create_format_string(function_parameter_types, lhs)) + "\\\"");

@@ -255,13 +255,13 @@ void define_vars_asm(std::ostream& stream, Environment& e) {
     }
     stream << std::endl;
   }
+  if (e.read_used) {
+    stream << "_read_error_message:\t.string \"EOF during read from standard input\\n\"" << std::endl;
+    stream << "_read_error_message_length:\t.quad 36" << std::endl;
+  }
   if (e.convert_num_to_string || e.read_used) {
     stream << "\t\t.lcomm _library_buf, 32 # used for double/long to string conversion in fpconv" << std::endl;
   }
-  // will be delted when libc is removed:
-  stream << "_print_string:\t.string \"%s\"" << std::endl;
-  stream << "_print_double:\t.string \"%lg\"" << std::endl;
-  stream << "_print_long:\t.string \"%ld\"" << std::endl;
 }
 
 void output_vars(std::ostream& stream, Environment& e) {
@@ -566,12 +566,18 @@ stoi: # rdi = address buffer, rsi = read bytes
 .stoi_ret:
     ret
 .stoi_error:
-        # exit(-1)" << std::endl;
-        movq $60, %rax # syscal call for exit" << std::endl;
-        movq $1, %rdi # return code" << std::endl;
-        decq %rdi
-        syscall
-        # end of stoi
+    # error message to std err
+    lea _read_error_message, %rsi # address of sring
+    movq _read_error_message_length, %rdx # number of bytes
+    movq $1, %rax # system call for write
+    movq $2, %rdi # file handle is stderr
+    syscall
+    # exit(-1)" << std::endl;
+    movq $60, %rax # syscal call for exit" << std::endl;
+    movq $1, %rdi # return code" << std::endl;
+    decq %rdi
+    syscall
+    # end of stoi
 
 )X";
         }
